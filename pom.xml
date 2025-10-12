@@ -34,7 +34,7 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-data-jpa</artifactId>
 		</dependency>
-		<!-- 校验注解（@Email/@NotBlank/@Size 等） -->
+		<!-- Validation annotations (@Email, @NotBlank, @Size, etc.) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-validation</artifactId>
@@ -47,7 +47,7 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-security</artifactId>
 		</dependency>
-		<!-- OAuth2 客户端（Google 登录需要） -->
+		<!-- OAuth2 client (required for Google Login) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
@@ -73,7 +73,7 @@
 			<artifactId>mysql-connector-j</artifactId>
 			<scope>runtime</scope>
 		</dependency>
-		<!-- JWT（JJWT）。api 为编译期依赖，impl/jackson 运行期加载 -->
+		<!-- JWT (JJWT): api is compile-time dependency, impl/jackson loaded at runtime -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -114,13 +114,13 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
-					<!-- 建议显式使用 release 与注解处理器版本，确保与 Java 21 对齐 -->
+					<!-- Explicitly use release with annotation processor version to ensure Java 21 compatibility -->
 					<release>${java.version}</release>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
-							<!-- Spring Boot Parent 会管理依赖版本；如果你的 IDE 报版本缺失，显式加上版本，例如： -->
+							<!-- Spring Boot Parent manages dependency versions; if your IDE reports missing version, add explicitly: -->
 							<!-- <version>1.18.34</version> -->
 						</path>
 					</annotationProcessorPaths>
