@@ -1,5 +1,6 @@
 package com.voyageai.voyageaibackend.web.controller;
 
+import com.voyageai.voyageaibackend.domain.entity.User;
 import com.voyageai.voyageaibackend.service.AuthService;
 import com.voyageai.voyageaibackend.web.dto.AuthResponse;
 import com.voyageai.voyageaibackend.web.dto.LoginRequest;
@@ -7,6 +8,9 @@ import com.voyageai.voyageaibackend.web.dto.RegisterRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -14,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for authentication endpoints.
- * Handles user registration and login operations.
+ * Handles user registration, login, and user info retrieval.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -53,6 +57,34 @@ public class AuthController {
   public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
     AuthResponse response = authService.login(request);
     return ResponseEntity.ok(response);
+  }
+
+  /**
+   * Gets the current authenticated user's information.
+   * Requires a valid JWT token in the Authorization header.
+   *
+   * @return user information (without password)
+   */
+  @GetMapping("/me")
+  public ResponseEntity<AuthResponse.UserInfo> getCurrentUser() {
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    
+    if (authentication == null || !authentication.isAuthenticated()) {
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+    }
+    
+    User user = (User) authentication.getPrincipal();
+    
+    // Build UserInfo from the authenticated User entity
+    AuthResponse.UserInfo userInfo = AuthResponse.UserInfo.builder()
+        .id(user.getId())
+        .email(user.getEmail())
+        .displayName(user.getDisplayName())
+        .avatarUrl(user.getAvatarUrl())
+        .authProvider(user.getAuthProvider().name())
+        .build();
+    
+    return ResponseEntity.ok(userInfo);
   }
 }
 

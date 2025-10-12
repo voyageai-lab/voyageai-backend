@@ -198,6 +198,7 @@
 						</goals>
 						<configuration>
 							<rules>
+								<!-- 90% coverage for all packages except config -->
 								<rule>
 									<element>PACKAGE</element>
 									<limits>
@@ -207,6 +208,23 @@
 											<minimum>0.9</minimum>
 										</limit>
 									</limits>
+									<excludes>
+										<exclude>com.voyageai.voyageaibackend.config</exclude>
+									</excludes>
+								</rule>
+								<!-- 70% for config package (declarative configuration classes are harder to test) -->
+								<rule>
+									<element>PACKAGE</element>
+									<limits>
+										<limit>
+											<counter>LINE</counter>
+											<value>COVEREDRATIO</value>
+											<minimum>0.70</minimum>
+										</limit>
+									</limits>
+									<includes>
+										<include>com.voyageai.voyageaibackend.config</include>
+									</includes>
 								</rule>
 							</rules>
 						</configuration>

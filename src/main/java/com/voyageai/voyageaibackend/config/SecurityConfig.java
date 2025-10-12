@@ -1,5 +1,6 @@
 package com.voyageai.voyageaibackend.config;
 
+import com.voyageai.voyageaibackend.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -9,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 /**
  * Security configuration for the application.
@@ -18,6 +20,17 @@ import org.springframework.security.web.SecurityFilterChain;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+  private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  /**
+   * Constructor with dependencies.
+   *
+   * @param jwtAuthenticationFilter the JWT authentication filter
+   */
+  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+  }
 
   /**
    * Configures the security filter chain.
@@ -42,7 +55,8 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             // Public endpoints (no authentication required)
             .requestMatchers(
-                "/api/auth/**",           // Authentication endpoints
+                "/api/auth/register",     // Registration
+                "/api/auth/login",        // Login
                 "/api/health",            // Health check
                 "/swagger-ui/**",         // Swagger UI
                 "/swagger-ui.html",       // Swagger UI HTML
@@ -53,7 +67,10 @@ public class SecurityConfig {
             
             // All other endpoints require authentication
             .anyRequest().authenticated()
-        );
+        )
+        
+        // Add JWT authentication filter before UsernamePasswordAuthenticationFilter
+        .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
