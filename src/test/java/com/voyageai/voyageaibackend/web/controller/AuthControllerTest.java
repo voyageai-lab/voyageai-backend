@@ -2,11 +2,14 @@ package com.voyageai.voyageaibackend.web.controller;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voyageai.voyageaibackend.domain.entity.User;
 import com.voyageai.voyageaibackend.exception.AuthenticationException;
 import com.voyageai.voyageaibackend.exception.BusinessException;
 import com.voyageai.voyageaibackend.service.AuthService;
@@ -19,6 +22,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.test.web.servlet.MockMvc;
 
 /**
@@ -171,6 +175,38 @@ class AuthControllerTest {
             .content(objectMapper.writeValueAsString(request)))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.errorCode").value("VALIDATION_ERROR"));
+  }
+
+  @Test
+  void getCurrentUser_authenticated_returnsUserInfo() throws Exception {
+    // Create a mock user
+    User mockUser = new User();
+    mockUser.setId(1L);
+    mockUser.setEmail("test@example.com");
+    mockUser.setDisplayName("Test User");
+    mockUser.setAvatarUrl("https://example.com/avatar.jpg");
+    mockUser.setAuthProvider(User.AuthProvider.LOCAL);
+
+    // Create authentication
+    UsernamePasswordAuthenticationToken auth =
+        new UsernamePasswordAuthenticationToken(mockUser, null, null);
+
+    // Perform request with authenticated user
+    mockMvc.perform(get("/api/auth/me")
+            .with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(1))
+        .andExpect(jsonPath("$.email").value("test@example.com"))
+        .andExpect(jsonPath("$.displayName").value("Test User"))
+        .andExpect(jsonPath("$.avatarUrl").value("https://example.com/avatar.jpg"))
+        .andExpect(jsonPath("$.authProvider").value("LOCAL"));
+  }
+
+  @Test
+  void getCurrentUser_unauthenticated_returns403() throws Exception {
+    // Perform request without authentication
+    mockMvc.perform(get("/api/auth/me"))
+        .andExpect(status().isForbidden());
   }
 }
 
