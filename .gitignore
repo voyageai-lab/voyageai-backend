@@ -34,3 +34,8 @@ build/
 
 docs/
 README.md
+
+### Sensitive Configuration Files ###
+.env
+application-secrets.properties
+src/main/resources/application-secrets.properties
