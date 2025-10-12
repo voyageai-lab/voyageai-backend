@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Component
 @Transactional
+@SuppressWarnings("checkstyle:AbbreviationAsWordInName")
 public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHandler {
 
   private final UserRepository userRepository;
@@ -68,7 +69,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     User.AuthProvider authProvider = User.AuthProvider.valueOf(registrationId.toUpperCase());
 
     // Find or create user
-    User user = processOAuthUser(email, name, picture, providerId, authProvider);
+    User user = processOauthUser(email, name, picture, providerId, authProvider);
 
     // Generate JWT token
     String token = jwtUtil.generateToken(user.getEmail(), user.getId());
@@ -89,7 +90,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
    * @param authProvider authentication provider type
    * @return the user entity
    */
-  private User processOAuthUser(
+  private User processOauthUser(
       String email,
       String name,
       String picture,
@@ -101,8 +102,8 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
         .orElseGet(() -> {
           // Check if user exists with same email (account merging scenario)
           return userRepository.findByEmail(email)
-              .map(existingUser -> mergeOAuthAccount(existingUser, providerId, authProvider))
-              .orElseGet(() -> createNewOAuthUser(
+              .map(existingUser -> mergeOauthAccount(existingUser, providerId, authProvider))
+              .orElseGet(() -> createNewOauthUser(
                   email, name, picture, providerId, authProvider
               ));
         });
@@ -118,7 +119,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
    * @param authProvider authentication provider type
    * @return the created user
    */
-  private User createNewOAuthUser(
+  private User createNewOauthUser(
       String email,
       String name,
       String picture,
@@ -146,7 +147,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
    * @param authProvider authentication provider type
    * @return the updated user
    */
-  private User mergeOAuthAccount(
+  private User mergeOauthAccount(
       User existingUser,
       String providerId,
       User.AuthProvider authProvider
