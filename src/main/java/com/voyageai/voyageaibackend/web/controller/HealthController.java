@@ -1,7 +1,5 @@
 package com.voyageai.voyageaibackend.web.controller;
 
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/health")
-@Tag(name = "Health", description = "Application health check endpoints")
 public class HealthController {
 
   /**
@@ -26,10 +23,6 @@ public class HealthController {
    * @return health status response
    */
   @GetMapping
-  @Operation(
-      summary = "Health check",
-      description = "Returns the application health status and current timestamp"
-  )
   public ResponseEntity<Map<String, Object>> healthCheck() {
     Map<String, Object> response = new HashMap<>();
     response.put("status", "UP");
