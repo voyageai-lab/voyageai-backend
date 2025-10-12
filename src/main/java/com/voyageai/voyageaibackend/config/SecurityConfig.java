@@ -11,10 +11,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 /**
  * Security configuration for the application.
- * Configures JWT-based stateless authentication.
+ * Configures JWT-based stateless authentication and CORS.
  * OAuth2 Google Login is disabled by default (can be enabled in application.properties).
  */
 @Configuration
@@ -22,14 +23,18 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
   private final JwtAuthenticationFilter jwtAuthenticationFilter;
+  private final CorsConfigurationSource corsConfigurationSource;
 
   /**
    * Constructor with dependencies.
    *
    * @param jwtAuthenticationFilter the JWT authentication filter
+   * @param corsConfigurationSource the CORS configuration source
    */
-  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+  public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter,
+                        CorsConfigurationSource corsConfigurationSource) {
     this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+    this.corsConfigurationSource = corsConfigurationSource;
   }
 
   /**
@@ -43,6 +48,9 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
     http
+        // Enable CORS with custom configuration
+        .cors(cors -> cors.configurationSource(corsConfigurationSource))
+        
         // Disable CSRF for stateless JWT authentication
         .csrf(AbstractHttpConfigurer::disable)
         
