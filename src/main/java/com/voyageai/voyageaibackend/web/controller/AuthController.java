@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 /**
  * REST controller for authentication endpoints.
- * Handles user registration, login, and user info retrieval.
+ * Handles user registration, login, logout, and user info retrieval.
  */
 @RestController
 @RequestMapping("/api/auth")
@@ -85,6 +85,50 @@ public class AuthController {
         .build();
     
     return ResponseEntity.ok(userInfo);
+  }
+
+  /**
+   * Logs out the current user.
+   * Note: Since we use stateless JWT authentication, the actual token invalidation
+   * happens on the client side (removing the token from storage).
+   * This endpoint is provided for:
+   * - Logging logout events
+   * - Future enhancements (token blacklisting, session cleanup, etc.)
+   * - Consistent API design
+   *
+   * @return success message
+   */
+  @PostMapping("/logout")
+  public ResponseEntity<LogoutResponse> logout() {
+    // Get current user for logging purposes
+    Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    
+    if (authentication != null && authentication.isAuthenticated()) {
+      User user = (User) authentication.getPrincipal();
+      // Log logout event (optional)
+      // In the future, could add token blacklisting here
+      System.out.println("User logged out: " + user.getEmail());
+    }
+    
+    // Clear security context
+    SecurityContextHolder.clearContext();
+    
+    return ResponseEntity.ok(new LogoutResponse("Logout successful"));
+  }
+
+  /**
+   * Response DTO for logout endpoint.
+   */
+  public static class LogoutResponse {
+    private final String message;
+
+    public LogoutResponse(String message) {
+      this.message = message;
+    }
+
+    public String getMessage() {
+      return message;
+    }
   }
 }
 

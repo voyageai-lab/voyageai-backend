@@ -211,5 +211,33 @@ class AuthControllerTest {
     mockMvc.perform(get("/api/auth/me"))
         .andExpect(status().isFound()); // 302 redirect
   }
+
+  @Test
+  void logout_authenticated_success() throws Exception {
+    // Create a mock user
+    User mockUser = new User();
+    mockUser.setId(1L);
+    mockUser.setEmail("test@example.com");
+    mockUser.setDisplayName("Test User");
+    mockUser.setAuthProvider(User.AuthProvider.LOCAL);
+
+    // Create authentication
+    UsernamePasswordAuthenticationToken auth =
+        new UsernamePasswordAuthenticationToken(mockUser, null, null);
+
+    // Perform logout request with authenticated user
+    mockMvc.perform(post("/api/auth/logout")
+            .with(authentication(auth)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.message").value("Logout successful"));
+  }
+
+  @Test
+  void logout_unauthenticated_redirects() throws Exception {
+    // Perform logout request without authentication
+    // Should redirect to login page (302)
+    mockMvc.perform(post("/api/auth/logout"))
+        .andExpect(status().isFound()); // 302 redirect
+  }
 }
 
