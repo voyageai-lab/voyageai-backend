@@ -6,6 +6,7 @@ import com.voyageai.voyageaibackend.web.dto.AuthResponse;
 import com.voyageai.voyageaibackend.web.dto.LoginRequest;
 import com.voyageai.voyageaibackend.web.dto.RegisterRequest;
 import jakarta.validation.Valid;
+import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -119,6 +120,7 @@ public class AuthController {
   /**
    * Response DTO for logout endpoint.
    */
+  @Getter
   public static class LogoutResponse {
     private final String message;
 
@@ -126,9 +128,6 @@ public class AuthController {
       this.message = message;
     }
 
-    public String getMessage() {
-      return message;
-    }
   }
 }
 
