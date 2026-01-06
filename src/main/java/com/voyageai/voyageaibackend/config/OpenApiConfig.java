@@ -45,8 +45,7 @@ public class OpenApiConfig {
         .info(new Info()
             .title("VoyageAI Backend API")
             .version("1.0")
-            .description("AI-powered travel planning platform "
-                + "with authentication and OAuth2 support")
+            .description(buildApiDescription())
             .contact(new Contact()
                 .name("VoyageAI Team")
                 .email("support@voyageai.com"))
@@ -55,6 +54,50 @@ public class OpenApiConfig {
                 .url("https://www.apache.org/licenses/LICENSE-2.0")))
         .components(components)
         .addSecurityItem(new SecurityRequirement().addList("bearer-jwt"));
+  }
+
+  /**
+   * Builds the API description with authentication instructions.
+   *
+   * @return API description text
+   */
+  private String buildApiDescription() {
+    return """
+        AI-powered travel planning platform with authentication and OAuth2 support.
+        
+        ## How to Authenticate
+        
+        ### Method 1: Email & Password Login (Recommended for Testing)
+        
+        1. **Register a new account** (if you don't have one):
+           - Use `POST /api/auth/register` endpoint
+           - Provide email, displayName, and password
+           - You'll receive a JWT token in the response
+        
+        2. **Login with existing account**:
+           - Use `POST /api/auth/login` endpoint
+           - Provide email and password
+           - Copy the JWT token from the response
+        
+        3. **Authorize in Swagger**:
+           - Click the "Authorize" button (🔓) at the top
+           - In the "bearer-jwt" section, paste your token
+           - Click "Authorize" and then "Close"
+        
+        4. **Test protected endpoints**:
+           - All Planning API endpoints now work with your token
+        
+        ### Method 2: Google OAuth2 Login
+        
+        - Available if configured in application-secrets.properties
+        - Use the browser flow to authenticate with Google
+        
+        ## Available Endpoints
+        
+        - **Authentication**: `/api/auth/*` - Public endpoints for login/register
+        - **Planning**: `/api/planning/*` - AI travel planning (requires auth)
+        - **Health**: `/api/health/*` - Service health checks (public)
+        """;
   }
 
   /**
@@ -69,7 +112,8 @@ public class OpenApiConfig {
         .bearerFormat("JWT")
         .in(SecurityScheme.In.HEADER)
         .name("Authorization")
-        .description("JWT token from /api/auth/login or /api/auth/register");
+        .description("JWT token obtained from /api/auth/login or /api/auth/register. "
+            + "Just paste the token value (without 'Bearer ' prefix).");
   }
 
   /**
