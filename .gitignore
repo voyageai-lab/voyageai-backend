@@ -39,3 +39,4 @@ README.md
 .env
 application-secrets.properties
 src/main/resources/application-secrets.properties
+summary.md
