@@ -82,28 +82,64 @@ CREATE TABLE IF NOT EXISTS comments (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Comments table (supports nested replies)';
 
 -- ============================================
--- Orders Table (Optional - for future payment integration)
+-- Orders Table
 -- Stores order information when users purchase premium features
 -- ============================================
 CREATE TABLE IF NOT EXISTS orders (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Order unique identifier',
     user_id BIGINT NOT NULL COMMENT 'Customer user ID',
-    order_number VARCHAR(100) NOT NULL UNIQUE COMMENT 'Human-readable order number',
-    plan_id VARCHAR(255) COMMENT 'Related travel plan ID',
-    total_amount DECIMAL(10, 2) NOT NULL COMMENT 'Total order amount in USD',
-    currency VARCHAR(10) NOT NULL DEFAULT 'USD' COMMENT 'Currency code',
-    status VARCHAR(50) NOT NULL DEFAULT 'PENDING' COMMENT 'Order status: PENDING, PAID, CANCELLED, REFUNDED',
-    payment_method VARCHAR(50) COMMENT 'Payment method used',
-    payment_id VARCHAR(255) COMMENT 'External payment provider transaction ID',
+    travel_plan_id VARCHAR(255) COMMENT 'Related DynamoDB travel plan ID',
+    amount DECIMAL(10, 2) NOT NULL COMMENT 'Order amount in USD',
+    status VARCHAR(50) NOT NULL DEFAULT 'PENDING' COMMENT 'Order status: PENDING, COMPLETED, FAILED, CANCELLED, REFUNDED',
+    payment_provider VARCHAR(50) COMMENT 'Payment provider (e.g., STRIPE, PAYPAL)',
+    payment_transaction_id VARCHAR(255) COMMENT 'External payment provider transaction ID',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Order creation timestamp',
-    paid_at TIMESTAMP COMMENT 'Payment completion timestamp',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last update timestamp',
     
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT,
-    INDEX idx_orders_user (user_id),
-    INDEX idx_orders_number (order_number),
+    INDEX idx_orders_user_id (user_id),
     INDEX idx_orders_status (status),
-    INDEX idx_orders_created (created_at DESC)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Orders table (for future payment features)';
+    INDEX idx_orders_created_at (created_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Orders table';
+
+-- ============================================
+-- Travel Projects Table
+-- Stores travel planning projects/conversations for multi-turn dialogue
+-- ============================================
+CREATE TABLE IF NOT EXISTS travel_projects (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Project unique identifier',
+    project_id VARCHAR(100) NOT NULL UNIQUE COMMENT 'Project UUID (e.g., proj-123e4567-...)',
+    user_id BIGINT NOT NULL COMMENT 'Project owner user ID',
+    title VARCHAR(255) NOT NULL COMMENT 'Project title (e.g., "Tokyo Trip 2024")',
+    description TEXT COMMENT 'Project description or notes',
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' COMMENT 'Project status: ACTIVE, ARCHIVED, DELETED',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Project creation timestamp',
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Last update timestamp',
+    
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_projects_user_id (user_id),
+    INDEX idx_projects_status (status),
+    INDEX idx_projects_updated_at (updated_at DESC),
+    INDEX idx_projects_user_status (user_id, status, updated_at DESC)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Travel planning projects table';
+
+-- ============================================
+-- Conversation Messages Table
+-- Stores conversation history for travel planning projects (dual-write with Redis)
+-- ============================================
+CREATE TABLE IF NOT EXISTS conversation_messages (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Message unique identifier',
+    message_id VARCHAR(100) NOT NULL UNIQUE COMMENT 'Message UUID (e.g., msg-123e4567-...)',
+    project_id VARCHAR(100) NOT NULL COMMENT 'Associated project ID',
+    role VARCHAR(20) NOT NULL COMMENT 'Message role: USER, ASSISTANT, SYSTEM',
+    message_type VARCHAR(30) NOT NULL COMMENT 'Message type: TEXT, ITINERARY, TOOL_RESULT, PROGRESS_UPDATE',
+    content TEXT NOT NULL COMMENT 'Message text content',
+    structured_data JSON COMMENT 'JSON data for ITINERARY or TOOL_RESULT types',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Message creation timestamp',
+    
+    INDEX idx_messages_project_created (project_id, created_at ASC),
+    INDEX idx_messages_project_id (project_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Conversation messages table';
 
 -- ============================================
 -- Initial Data (Optional)
