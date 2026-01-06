@@ -32,11 +32,13 @@ build/
 ### VS Code ###
 .vscode/
 
-docs/
 README.md
+
+### Private Documentation ###
+docs/
 
 ### Sensitive Configuration Files ###
 .env
 application-secrets.properties
 src/main/resources/application-secrets.properties
-summary.md
+summary.md.DS_Store
