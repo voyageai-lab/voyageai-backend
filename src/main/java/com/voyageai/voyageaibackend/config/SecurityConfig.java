@@ -71,7 +71,7 @@ public class SecurityConfig {
             .requestMatchers(
                 "/api/auth/register",     // Registration
                 "/api/auth/login",        // Login
-                "/api/health",            // Health check
+                "/api/health/**",         // Health check endpoints
                 "/oauth2/**",             // OAuth2 endpoints
                 "/login/oauth2/**",       // OAuth2 callback
                 "/swagger-ui/**",         // Swagger UI
