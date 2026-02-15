@@ -1,0 +1,189 @@
+# VoyageAI Full Stack - Docker Compose
+# Usage: docker-compose up -d
+#
+# Services:
+#   - frontend:       React app served by Nginx (port 3000)
+#   - java-backend:   Spring Boot API (port 8081)
+#   - python-service: FastAPI AI service (port 8000)
+#   - python-worker:  Kafka consumer worker
+#   - kafka:          Kafka broker in KRaft mode (port 9092)
+#   - redis:          Redis cache (port 6379)
+#   - mongodb:        MongoDB document store (port 27017)
+#   - mysql:          MySQL relational DB (port 3306)
+
+services:
+  # ============================================================
+  # Infrastructure Services
+  # ============================================================
+
+  kafka:
+    image: apache/kafka:3.7.0
+    container_name: voyageai-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - kafka-data:/tmp/kraft-combined-logs
+
+  redis:
+    image: redis:7-alpine
+    container_name: voyageai-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    volumes:
+      - redis-data:/data
+
+  mongodb:
+    image: mongo:7
+    container_name: voyageai-mongodb
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: voyageai
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - mongo-data:/data/db
+
+  mysql:
+    image: mysql:8.0
+    container_name: voyageai-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-voyageai123}
+      MYSQL_DATABASE: voyageai
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+  # ============================================================
+  # Application Services
+  # ============================================================
+
+  java-backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.java
+    container_name: voyageai-java
+    ports:
+      - "8081:8081"
+    environment:
+      # Database
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/voyageai?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_ROOT_PASSWORD:-voyageai123}
+      # Redis
+      SPRING_DATA_REDIS_HOST: redis
+      # MongoDB
+      SPRING_DATA_MONGODB_URI: mongodb://mongodb:27017/voyageai
+      SPRING_DATA_MONGODB_DATABASE: voyageai
+      # Kafka
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # JWT
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-for-development-only-change-in-prod}
+      # OpenAI
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # Planning mode
+      PLANNING_MODE: kafka
+      # Frontend URL for CORS
+      FRONTEND_URL: http://localhost:3000
+      # Actuator
+      SPRING_PROFILES_ACTIVE: production
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+
+  python-service:
+    build:
+      context: ../voyageai-python-service
+      dockerfile: ../voyageai-backend/docker/Dockerfile.python
+    container_name: voyageai-python
+    ports:
+      - "8000:8000"
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_URL: redis://redis:6379/0
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: voyageai
+      DEBUG: "false"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+  python-worker:
+    build:
+      context: ../voyageai-python-service
+      dockerfile: ../voyageai-backend/docker/Dockerfile.worker
+    container_name: voyageai-worker
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      REDIS_URL: redis://redis:6379/0
+      MONGODB_URI: mongodb://mongodb:27017
+      MONGODB_DATABASE: voyageai
+      DEBUG: "false"
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../voyageai-web
+      dockerfile: ../voyageai-backend/docker/Dockerfile.frontend
+    container_name: voyageai-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - java-backend
+
+volumes:
+  kafka-data:
+  redis-data:
+  mongo-data:
+  mysql-data:
