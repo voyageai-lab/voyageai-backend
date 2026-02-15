@@ -27,5 +27,12 @@ public class PlanningRequest {
   @NotBlank(message = "Requirements cannot be empty")
   @Size(min = 10, max = 2000, message = "Requirements must be between 10 and 2000 characters")
   private String requirements;
+
+  /**
+   * Optional project ID to continue an existing conversation.
+   * If null, a new project will be auto-created.
+   * If provided, the message is added to the existing project's conversation.
+   */
+  private String projectId;
 }
 

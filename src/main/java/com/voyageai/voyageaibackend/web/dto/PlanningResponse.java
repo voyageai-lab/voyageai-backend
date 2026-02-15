@@ -20,6 +20,11 @@ public class PlanningResponse {
   private String taskId;
 
   /**
+   * Project ID this task belongs to.
+   */
+  private String projectId;
+
+  /**
    * Human-readable message.
    */
   private String message;

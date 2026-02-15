@@ -110,9 +110,17 @@ public class PlanningController {
     
     log.info("Received planning request from user: {}", user.getEmail());
 
-    // Auto-create a project with title from first few words of requirements
-    String title = extractTitle(request.getRequirements());
-    TravelProject project = projectService.createProject(user.getId(), title, null);
+    // Use existing project if projectId is provided, otherwise auto-create
+    TravelProject project;
+    if (request.getProjectId() != null && !request.getProjectId().isBlank()) {
+      project = projectService.getProject(request.getProjectId(), user.getId());
+      projectService.touchProject(project.getProjectId());
+      log.info("Using existing project: {}", project.getProjectId());
+    } else {
+      String title = extractTitle(request.getRequirements());
+      project = projectService.createProject(user.getId(), title, null);
+      log.info("Created new project: {}", project.getProjectId());
+    }
 
     // Submit async request with projectId
     String taskId = planningService.submitPlanningRequest(
@@ -124,6 +132,7 @@ public class PlanningController {
     // Build response
     PlanningResponse response = PlanningResponse.builder()
         .taskId(taskId)
+        .projectId(project.getProjectId())
         .message("Planning request submitted. Use taskId to check status.")
         .statusUrl("/api/planning/status/" + taskId)
         .build();
