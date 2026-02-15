@@ -38,7 +38,11 @@ public class KafkaHealthIndicator implements HealthIndicator {
     @Override
     public Health health() {
         try (AdminClient admin = AdminClient.create(
-                Map.of(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers))) {
+                Map.of(
+                    AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
+                    AdminClientConfig.REQUEST_TIMEOUT_MS_CONFIG, TIMEOUT_SECONDS * 1000,
+                    AdminClientConfig.DEFAULT_API_TIMEOUT_MS_CONFIG, TIMEOUT_SECONDS * 1000
+                ))) {
 
             DescribeClusterResult cluster = admin.describeCluster();
             String clusterId = cluster.clusterId()
@@ -52,11 +56,11 @@ public class KafkaHealthIndicator implements HealthIndicator {
                     .withDetail("bootstrapServers", bootstrapServers)
                     .build();
 
-        } catch (ExecutionException | TimeoutException | InterruptedException e) {
+        } catch (Exception e) {
             log.warn("Kafka health check failed: {}", e.getMessage());
             return Health.down()
                     .withDetail("bootstrapServers", bootstrapServers)
-                    .withDetail("error", e.getMessage())
+                    .withDetail("error", e.getMessage() != null ? e.getMessage() : e.getClass().getName())
                     .build();
         }
     }
