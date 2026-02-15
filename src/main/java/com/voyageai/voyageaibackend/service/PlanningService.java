@@ -3,29 +3,32 @@ package com.voyageai.voyageaibackend.service;
 import com.voyageai.voyageaibackend.domain.model.ConversationMessage;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask.TaskType;
 import com.voyageai.voyageaibackend.domain.model.StructuredItinerary;
+import com.voyageai.voyageaibackend.kafka.KafkaProducerService;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 /**
  * Service for asynchronous travel plan generation.
  * 
- * <p>This service orchestrates the AI-powered travel planning workflow:
- * <ol>
- *   <li>Receives a planning request with task ID</li>
- *   <li>Updates task status to PROCESSING</li>
- *   <li>Calls OpenAI API to generate itinerary</li>
- *   <li>Updates task with result or error</li>
- *   <li>Returns CompletableFuture for non-blocking execution</li>
- * </ol>
+ * <p>Supports two modes via {@code planning.mode} property:
+ * <ul>
+ *   <li>{@code kafka} (default) - Publishes request to Kafka topic, processed by Python AI Worker</li>
+ *   <li>{@code async} - Direct @Async processing in Java (legacy fallback)</li>
+ * </ul>
  * 
- * <p>The @Async annotation ensures that methods run in a separate thread from the
- * configured thread pool (AsyncConfig). This prevents blocking the main request thread
- * and allows the API to return immediately with a task ID.
+ * <p>Kafka mode workflow:
+ * <ol>
+ *   <li>Create task in Redis</li>
+ *   <li>Publish PlanningRequestEvent to {@code planning.request} topic</li>
+ *   <li>Python worker consumes, processes, publishes progress/result events</li>
+ *   <li>Java KafkaConsumerService handles progress/result events</li>
+ * </ol>
  */
 @Service
 @RequiredArgsConstructor
@@ -38,6 +41,10 @@ public class PlanningService {
   private final TravelPlanService travelPlanService;
   private final ConversationHistoryService conversationHistoryService;
   private final GeocodingService geocodingService;
+  private final KafkaProducerService kafkaProducerService;
+
+  @Value("${planning.mode:kafka}")
+  private String planningMode;
 
   /**
    * Generates a travel plan asynchronously with structured data and progress tracking.
@@ -229,11 +236,19 @@ public class PlanningService {
     task.setTaskType(taskType);
     String taskId = task.getTaskId();
 
-    // Trigger async generation (returns immediately)
-    generatePlanAsync(taskId, projectId, requirements);
+    if ("kafka".equalsIgnoreCase(planningMode)) {
+      // Kafka mode: publish to Kafka topic for Python worker
+      kafkaProducerService.sendPlanningRequest(
+          taskId, userId, projectId, requirements, taskType.name());
+      log.info("Submitted {} request via Kafka with task ID: {} in project: {}",
+          taskType, taskId, projectId);
+    } else {
+      // Legacy async mode: direct @Async processing in Java
+      generatePlanAsync(taskId, projectId, requirements);
+      log.info("Submitted {} request via @Async with task ID: {} in project: {}",
+          taskType, taskId, projectId);
+    }
 
-    log.info("Submitted {} request with task ID: {} in project: {}", 
-        taskType, taskId, projectId);
     return taskId;
   }
 }
