@@ -5,6 +5,7 @@ import com.voyageai.voyageaibackend.domain.model.ConversationMessage;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask.TaskType;
 import com.voyageai.voyageaibackend.domain.model.StructuredItinerary;
+import com.voyageai.voyageaibackend.kafka.KafkaProducerService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -39,6 +40,9 @@ class PlanningServiceTest {
     @Mock
     private GeocodingService geocodingService;
 
+    @Mock
+    private KafkaProducerService kafkaProducerService;
+
     private PlanningService planningService;
     private ObjectMapper objectMapper;
 
@@ -49,9 +53,12 @@ class PlanningServiceTest {
                 taskService,
                 travelPlanService,
                 conversationHistoryService,
-                geocodingService
+                geocodingService,
+                kafkaProducerService
         );
         objectMapper = new ObjectMapper();
+        // Default to async mode for existing tests
+        ReflectionTestUtils.setField(planningService, "planningMode", "async");
     }
 
     @Test
