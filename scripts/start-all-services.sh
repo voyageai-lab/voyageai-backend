@@ -64,9 +64,9 @@ echo "[OK] Docker is available"
 echo ""
 
 STEP=1
-TOTAL_STEPS=3
+TOTAL_STEPS=4
 if [ "$START_MONGODB" = true ] && [ "$START_DYNAMODB" = true ]; then
-    TOTAL_STEPS=4
+    TOTAL_STEPS=5
 fi
 
 # Start MySQL
@@ -98,7 +98,14 @@ if [ "$START_DYNAMODB" = true ]; then
     echo "-------------------------------------------------"
     "$SCRIPT_DIR/localstack-setup.sh"
     echo ""
+    STEP=$((STEP + 1))
 fi
+
+# Start Kafka (KRaft mode)
+echo "Step $STEP/$TOTAL_STEPS: Setting up Kafka..."
+echo "--------------------------------"
+"$SCRIPT_DIR/kafka-setup.sh"
+echo ""
 
 echo "===================================="
 echo "All services are ready!"
@@ -107,6 +114,7 @@ echo ""
 echo "Running Services:"
 echo "  MySQL:      localhost:3306  (database: voyageai)"
 echo "  Redis:      localhost:6379"
+echo "  Kafka:      localhost:9092  (KRaft mode)"
 if [ "$START_MONGODB" = true ]; then
     echo "  MongoDB:    localhost:27017 (database: voyageai)"
 fi
@@ -129,7 +137,7 @@ echo "  2. Run the application: mvn spring-boot:run"
 echo "  3. Check health: curl http://localhost:8081/api/health/nosql"
 echo ""
 echo "Useful Commands:"
-CONTAINERS="mysql-voyage redis"
+CONTAINERS="mysql-voyage redis voyageai-kafka"
 if [ "$START_MONGODB" = true ]; then
     CONTAINERS="$CONTAINERS mongodb-voyage"
 fi
