@@ -1,7 +1,7 @@
 target
 .git
-docs
-k8s
-docker
+.idea
+.vscode
+.cursor
 scripts
 *.md
