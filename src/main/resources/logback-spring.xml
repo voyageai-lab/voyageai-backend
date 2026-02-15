@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Structured logging configuration for VoyageAI Backend.
+
+  Two profiles:
+  - default (development): Human-readable console output
+  - production: JSON structured logs for ELK/Datadog/CloudWatch
+
+  JSON logs include:
+  - timestamp, level, logger, message
+  - MDC fields: traceId, taskId, userId (set via MDC.put())
+  - Stack traces as structured fields
+
+  Usage in code:
+    import org.slf4j.MDC;
+    MDC.put("taskId", taskId);
+    MDC.put("userId", userId);
+    try {
+        // ... processing ...
+    } finally {
+        MDC.clear();
+    }
+-->
+<configuration>
+
+    <springProperty scope="context" name="SERVICE_NAME"
+                    source="spring.application.name"
+                    defaultValue="voyageai-backend"/>
+
+    <!-- ================================================================ -->
+    <!-- Development Profile: human-readable console output               -->
+    <!-- ================================================================ -->
+    <springProfile name="!production">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+
+        <!-- Application package at DEBUG for development -->
+        <logger name="com.voyageai" level="DEBUG"/>
+
+        <!-- Reduce noise from frameworks -->
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.hibernate" level="WARN"/>
+        <logger name="org.apache.kafka" level="WARN"/>
+    </springProfile>
+
+    <!-- ================================================================ -->
+    <!-- Production Profile: JSON structured logging                      -->
+    <!-- ================================================================ -->
+    <springProfile name="production">
+        <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <!--
+                  JSON output using pattern layout.
+                  Each log line is a valid JSON object with:
+                  - Standard fields: timestamp, level, logger, thread, message
+                  - MDC context: taskId, userId, traceId
+                  - Service metadata
+                -->
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%level","logger":"%logger{36}","thread":"%thread","message":"%replace(%msg){'\"','\\\"'}","service":"${SERVICE_NAME}","taskId":"%X{taskId:-}","userId":"%X{userId:-}","traceId":"%X{traceId:-}"%ex{0}}%n</pattern>
+            </encoder>
+        </appender>
+
+        <!-- Structured exception logging -->
+        <appender name="JSON_CONSOLE_WITH_STACK" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <pattern>{"timestamp":"%d{yyyy-MM-dd'T'HH:mm:ss.SSSZ}","level":"%level","logger":"%logger{36}","thread":"%thread","message":"%replace(%msg){'\"','\\\"'}","service":"${SERVICE_NAME}","taskId":"%X{taskId:-}","userId":"%X{userId:-}","traceId":"%X{traceId:-}","exception":"%replace(%xEx){'\"','\\\"'}"}%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+
+        <logger name="com.voyageai" level="INFO"/>
+        <logger name="org.springframework" level="WARN"/>
+        <logger name="org.hibernate" level="WARN"/>
+        <logger name="org.apache.kafka" level="WARN"/>
+    </springProfile>
+
+</configuration>
