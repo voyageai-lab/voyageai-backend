@@ -133,7 +133,7 @@ services:
   python-service:
     build:
       context: ../voyageai-python-service
-      dockerfile: ../voyageai-backend/docker/Dockerfile.python
+      dockerfile: Dockerfile
     container_name: voyageai-python
     ports:
       - "8000:8000"
@@ -155,7 +155,7 @@ services:
   python-worker:
     build:
       context: ../voyageai-python-service
-      dockerfile: ../voyageai-backend/docker/Dockerfile.worker
+      dockerfile: Dockerfile.worker
     container_name: voyageai-worker
     environment:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
@@ -175,7 +175,7 @@ services:
   frontend:
     build:
       context: ../voyageai-web
-      dockerfile: ../voyageai-backend/docker/Dockerfile.frontend
+      dockerfile: Dockerfile
     container_name: voyageai-frontend
     ports:
       - "3000:80"

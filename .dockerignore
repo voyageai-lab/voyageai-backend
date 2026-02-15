@@ -1,0 +1,7 @@
+target
+.git
+docs
+k8s
+docker
+scripts
+*.md
