@@ -159,6 +159,12 @@ public class KafkaConfig {
     props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
     props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
     props.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, true);
+    // Reduce rebalancing frequency: increase session timeout and set heartbeat
+    // Default session.timeout.ms = 45s, heartbeat = 3s → too aggressive for low-traffic
+    props.put(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG, 30000);     // 30s
+    props.put(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG, 10000);  // 10s (< 1/3 of session)
+    // Max poll interval: allow processing to take up to 5 minutes
+    props.put(ConsumerConfig.MAX_POLL_INTERVAL_MS_CONFIG, 300000);  // 5m
     return props;
   }
 }

@@ -3,6 +3,7 @@ package com.voyageai.voyageaibackend.web.controller;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask.TaskStatus;
 import com.voyageai.voyageaibackend.exception.ResourceNotFoundException;
+import com.voyageai.voyageaibackend.kafka.event.PlanningProgressEvent;
 import com.voyageai.voyageaibackend.service.RedisTaskService;
 import com.voyageai.voyageaibackend.web.dto.TaskStatusUpdate;
 import io.swagger.v3.oas.annotations.Operation;
@@ -202,6 +203,48 @@ public class TaskStreamController {
 
     } catch (IOException e) {
       log.error("Failed to send SSE update for task {}: {}", taskId, e.getMessage());
+      emitter.completeWithError(e);
+      activeEmitters.remove(taskId);
+    }
+  }
+
+  /**
+   * Notifies connected clients about a rich agent event (Phase 1 SSE streaming).
+   *
+   * <p>This method is called by {@link com.voyageai.voyageaibackend.kafka.KafkaConsumerService}
+   * when a progress event with {@code eventType} is received. It bypasses the Redis round-trip
+   * for lower latency, sending the event directly to the SSE emitter.
+   *
+   * @param taskId Task ID
+   * @param event Progress event with rich eventType/eventData
+   */
+  public void notifyAgentEvent(String taskId, PlanningProgressEvent event) {
+    SseEmitter emitter = activeEmitters.get(taskId);
+    if (emitter == null) {
+      log.debug("No active SSE connection for agent event: taskId={}, eventType={}",
+          taskId, event.getEventType());
+      return;
+    }
+
+    try {
+      TaskStatusUpdate update = TaskStatusUpdate.builder()
+          .taskId(taskId)
+          .status(TaskStatus.PROCESSING)
+          .progressMessage(event.getMessage())
+          .progressPercent(event.getPercent())
+          .eventType(event.getEventType())
+          .eventData(event.getEventData())
+          .timestamp(Instant.now())
+          .build();
+
+      emitter.send(SseEmitter.event()
+          .name("agent_event")
+          .data(update));
+
+      log.debug("Sent SSE agent_event '{}' for task {}: percent={}%",
+          event.getEventType(), taskId, event.getPercent());
+    } catch (IOException e) {
+      log.error("Failed to send SSE agent event for task {}: {}", taskId, e.getMessage());
       emitter.completeWithError(e);
       activeEmitters.remove(taskId);
     }

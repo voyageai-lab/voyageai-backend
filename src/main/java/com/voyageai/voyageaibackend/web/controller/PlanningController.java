@@ -5,10 +5,12 @@ import com.voyageai.voyageaibackend.domain.entity.User;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask;
 import com.voyageai.voyageaibackend.domain.repo.UserRepository;
 import com.voyageai.voyageaibackend.exception.ResourceNotFoundException;
+import com.voyageai.voyageaibackend.kafka.KafkaProducerService;
 import com.voyageai.voyageaibackend.service.ConversationHistoryService;
 import com.voyageai.voyageaibackend.service.PlanningService;
 import com.voyageai.voyageaibackend.service.RedisTaskService;
 import com.voyageai.voyageaibackend.service.TravelProjectService;
+import com.voyageai.voyageaibackend.web.dto.ClarificationReplyRequest;
 import com.voyageai.voyageaibackend.web.dto.ConversationHistoryResponse;
 import com.voyageai.voyageaibackend.web.dto.PlanningRequest;
 import com.voyageai.voyageaibackend.web.dto.PlanningResponse;
@@ -60,6 +62,7 @@ public class PlanningController {
   private final TravelProjectService projectService;
   private final UserRepository userRepository;
   private final ConversationHistoryService conversationHistoryService;
+  private final KafkaProducerService kafkaProducerService;
 
   /**
    * Submits a travel planning request.
@@ -244,6 +247,64 @@ public class PlanningController {
         .build();
 
     return ResponseEntity.ok(response);
+  }
+
+  /**
+   * Reply to clarification questions for a planning task (Phase 2).
+   *
+   * <p>When the agent's pre-flight analysis detects missing information,
+   * it sends a {@code clarification_needed} SSE event with questions.
+   * The frontend renders inline questions and submits answers here.
+   *
+   * <p>This endpoint publishes a ClarificationReplyEvent to Kafka,
+   * which the Python worker consumes to resume planning with enriched requirements.
+   *
+   * @param taskId  Task ID that needs clarification
+   * @param request User's answers to clarification questions
+   * @return 200 OK with acknowledgment
+   */
+  @PostMapping("/tasks/{taskId}/reply")
+  @Operation(summary = "Reply to clarification questions",
+             description = "Submit answers to agent's clarification questions to resume planning")
+  @SecurityRequirement(name = "bearer-jwt")
+  public ResponseEntity<java.util.Map<String, String>> replyClarification(
+      @PathVariable String taskId,
+      @Valid @RequestBody ClarificationReplyRequest request
+  ) {
+    log.info("Received clarification reply for task: {}, answers: {}",
+        taskId, request.getAnswers().size());
+
+    PlanningTask task = taskService.getTask(taskId)
+        .orElseThrow(() -> new ResourceNotFoundException("Task not found: " + taskId));
+
+    // Build conversation context so the agent keeps project continuity
+    String conversationContext = null;
+    if (task.getProjectId() != null) {
+      try {
+        conversationContext = conversationHistoryService.buildContextForAi(task.getProjectId());
+        if (conversationContext != null && !conversationContext.isEmpty()) {
+          log.info("Built conversation context ({} chars) for clarification reply: taskId={}, projectId={}",
+              conversationContext.length(), taskId, task.getProjectId());
+        }
+      } catch (Exception e) {
+        log.warn("Failed to build conversation context for clarification reply: {}", e.getMessage());
+      }
+    }
+
+    // Publish reply to Kafka for Python worker consumption
+    kafkaProducerService.sendClarificationReply(
+        taskId,
+        task.getUserId(),
+        task.getProjectId(),
+        request.getAnswers(),
+        task.getRequirements(),
+        conversationContext
+    );
+
+    return ResponseEntity.ok(java.util.Map.of(
+        "status", "accepted",
+        "message", "Your answers have been received. Planning will resume shortly."
+    ));
   }
 
   /**

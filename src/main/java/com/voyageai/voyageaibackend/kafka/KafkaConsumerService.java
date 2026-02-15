@@ -1,12 +1,16 @@
 package com.voyageai.voyageaibackend.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voyageai.voyageaibackend.domain.model.ConversationMessage;
 import com.voyageai.voyageaibackend.domain.model.StructuredItinerary;
 import com.voyageai.voyageaibackend.kafka.event.PlanningProgressEvent;
 import com.voyageai.voyageaibackend.kafka.event.PlanningResultEvent;
+import com.voyageai.voyageaibackend.service.ConversationHistoryService;
 import com.voyageai.voyageaibackend.service.RedisTaskService;
 import com.voyageai.voyageaibackend.service.TravelPlanService;
 import com.voyageai.voyageaibackend.web.controller.TaskStreamController;
+import java.time.Instant;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.MDC;
@@ -39,6 +43,7 @@ public class KafkaConsumerService {
 
   private final RedisTaskService taskService;
   private final TravelPlanService travelPlanService;
+  private final ConversationHistoryService conversationHistoryService;
   private final TaskStreamController taskStreamController;
   private final ObjectMapper objectMapper;
 
@@ -61,19 +66,26 @@ public class KafkaConsumerService {
     MDC.put("taskId", taskId);
     try {
       log.info(
-          "Received progress event: taskId={}, stage={}, percent={}",
+          "Received progress event: taskId={}, stage={}, percent={}, eventType={}",
           taskId,
           event.getStage(),
-          event.getPercent()
+          event.getPercent(),
+          event.getEventType()
       );
 
       // Update task progress in Redis
       taskService.updateProgress(taskId, event.getMessage(), event.getPercent());
 
-      // Get updated task and push SSE event
-      taskService.getTask(taskId).ifPresent(task ->
-          taskStreamController.notifyTaskUpdate(taskId, task)
-      );
+      // If rich event data is present, forward it directly via SSE
+      // (bypassing the Redis round-trip for lower latency)
+      if (event.getEventType() != null) {
+        taskStreamController.notifyAgentEvent(taskId, event);
+      } else {
+        // Legacy progress events: read from Redis and push
+        taskService.getTask(taskId).ifPresent(task ->
+            taskStreamController.notifyTaskUpdate(taskId, task)
+        );
+      }
     } catch (Exception e) {
       log.error("Failed to handle progress event: taskId={}, error={}", taskId, e.getMessage(), e);
     } finally {
@@ -166,6 +178,42 @@ public class KafkaConsumerService {
       } catch (Exception e) {
         log.warn("Failed to deserialize itinerary JSON, falling back to raw string: taskId={}, error={}",
             taskId, e.getMessage());
+      }
+    }
+
+    // Save assistant message to conversation history for project switching
+    if (event.getProjectId() != null && event.getItineraryJson() != null) {
+      try {
+        String destination = structuredItinerary != null && structuredItinerary.getMetadata() != null
+            ? structuredItinerary.getMetadata().getDestination() : "your trip";
+        // Re-serialize through Jackson to produce camelCase JSON for the frontend.
+        // The raw itineraryJson from Python uses snake_case (e.g., day_number, total_days),
+        // but the frontend TypeScript types expect camelCase (dayNumber, totalDays).
+        String normalizedJson = event.getItineraryJson();
+        if (structuredItinerary != null) {
+          try {
+            normalizedJson = objectMapper.writeValueAsString(structuredItinerary);
+          } catch (Exception serEx) {
+            log.warn("Failed to re-serialize itinerary to camelCase, using raw JSON: {}",
+                serEx.getMessage());
+          }
+        }
+        ConversationMessage aiMessage = ConversationMessage.builder()
+            .messageId("msg-" + UUID.randomUUID())
+            .projectId(event.getProjectId())
+            .role(ConversationMessage.Role.ASSISTANT)
+            .messageType(ConversationMessage.MessageType.ITINERARY)
+            .content("Here's your personalized travel itinerary for " + destination + "!")
+            .structuredData(normalizedJson)
+            .timestamp(Instant.now())
+            .build();
+        conversationHistoryService.addMessage(event.getProjectId(), aiMessage);
+        log.info("Saved assistant message to conversation history: taskId={}, projectId={}",
+            taskId, event.getProjectId());
+      } catch (Exception e) {
+        log.warn("Failed to save assistant message to history: taskId={}, error={}",
+            taskId, e.getMessage());
+        // Don't block the task completion if history save fails
       }
     }
 

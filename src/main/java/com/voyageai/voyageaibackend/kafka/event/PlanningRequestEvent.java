@@ -37,6 +37,9 @@ public class PlanningRequestEvent {
   /** Task type: INITIAL_PLANNING, CONVERSATION_UPDATE, TOOL_CALL. */
   private String taskType;
 
+  /** Previous conversation context for follow-up requests (null for initial). */
+  private String conversationContext;
+
   /** ISO-8601 timestamp when the event was created. */
   private Instant timestamp;
 }

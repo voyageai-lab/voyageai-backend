@@ -237,13 +237,44 @@ public class PlanningService {
     String taskId = task.getTaskId();
 
     if ("kafka".equalsIgnoreCase(planningMode)) {
-      // Kafka mode: publish to Kafka topic for Python worker
+      // Build conversation context BEFORE saving the new user message
+      // so the context reflects the history up to (but not including) this message.
+      String conversationContext = null;
+      if (taskType == TaskType.CONVERSATION_UPDATE) {
+        try {
+          conversationContext = conversationHistoryService.buildContextForAi(projectId);
+          log.info("Built conversation context ({} chars) for project: {}",
+              conversationContext.length(), projectId);
+        } catch (Exception e) {
+          log.warn("Failed to build conversation context: {}", e.getMessage());
+        }
+      }
+
+      // Save user message to conversation history BEFORE sending to Kafka
+      // (In @Async mode, generatePlanAsync handles this, but Kafka mode skips it)
+      try {
+        ConversationMessage userMessage = ConversationMessage.builder()
+            .messageId("msg-" + UUID.randomUUID())
+            .projectId(projectId)
+            .role(ConversationMessage.Role.USER)
+            .messageType(ConversationMessage.MessageType.TEXT)
+            .content(requirements)
+            .timestamp(Instant.now())
+            .build();
+        conversationHistoryService.addMessage(projectId, userMessage);
+      } catch (Exception e) {
+        log.warn("Failed to save user message to history: {}", e.getMessage());
+        // Don't block the planning request if history save fails
+      }
+
+      // Kafka mode: publish to Kafka topic for Python worker (with conversation context)
       kafkaProducerService.sendPlanningRequest(
-          taskId, userId, projectId, requirements, taskType.name());
+          taskId, userId, projectId, requirements, taskType.name(), conversationContext);
       log.info("Submitted {} request via Kafka with task ID: {} in project: {}",
           taskType, taskId, projectId);
     } else {
       // Legacy async mode: direct @Async processing in Java
+      // (generatePlanAsync saves user message internally)
       generatePlanAsync(taskId, projectId, requirements);
       log.info("Submitted {} request via @Async with task ID: {} in project: {}",
           taskType, taskId, projectId);

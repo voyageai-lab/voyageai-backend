@@ -3,6 +3,7 @@ package com.voyageai.voyageaibackend.web.dto;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask.TaskStatus;
 import com.voyageai.voyageaibackend.domain.model.StructuredItinerary;
 import java.time.Instant;
+import java.util.Map;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -88,6 +89,21 @@ public class TaskStatusUpdate {
    * Error message (only present when task fails).
    */
   private String errorMessage;
+
+  /**
+   * Granular event subtype for rich SSE streaming (Phase 1).
+   *
+   * <p>Values: thinking, tool_start, tool_result, stage_change,
+   * plan_outline, clarification_needed. Null for legacy progress events.
+   */
+  private String eventType;
+
+  /**
+   * Structured payload for the event.
+   *
+   * <p>Contents depend on eventType. See PlanningProgressEvent for details.
+   */
+  private Map<String, Object> eventData;
 
   /**
    * Timestamp of this update.
