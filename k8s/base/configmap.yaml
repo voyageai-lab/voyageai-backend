@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: voyageai-config
+  namespace: voyageai
+data:
+  # Java Backend
+  SPRING_DATASOURCE_URL: "jdbc:mysql://mysql:3306/voyageai?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true"
+  SPRING_DATA_REDIS_HOST: "redis"
+  SPRING_DATA_MONGODB_URI: "mongodb://mongodb:27017/voyageai"
+  SPRING_DATA_MONGODB_DATABASE: "voyageai"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  PLANNING_MODE: "kafka"
+  FRONTEND_URL: "http://frontend"
+  SPRING_PROFILES_ACTIVE: "production"
+  # Python Service
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  REDIS_URL: "redis://redis:6379/0"
+  MONGODB_URI: "mongodb://mongodb:27017"
+  MONGODB_DATABASE: "voyageai"
+  DEBUG: "false"
