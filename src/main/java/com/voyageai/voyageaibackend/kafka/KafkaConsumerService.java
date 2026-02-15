@@ -1,6 +1,7 @@
 package com.voyageai.voyageaibackend.kafka;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.voyageai.voyageaibackend.domain.model.StructuredItinerary;
 import com.voyageai.voyageaibackend.kafka.event.PlanningProgressEvent;
 import com.voyageai.voyageaibackend.kafka.event.PlanningResultEvent;
 import com.voyageai.voyageaibackend.service.RedisTaskService;
@@ -39,6 +40,7 @@ public class KafkaConsumerService {
   private final RedisTaskService taskService;
   private final TravelPlanService travelPlanService;
   private final TaskStreamController taskStreamController;
+  private final ObjectMapper objectMapper;
 
   /**
    * Handles progress events from the Python worker.
@@ -151,8 +153,28 @@ public class KafkaConsumerService {
       }
     }
 
-    // Mark task as completed in Redis with itinerary JSON
-    taskService.markCompleted(taskId, event.getItineraryJson());
+    // Deserialize itineraryJson (snake_case from Python) into StructuredItinerary
+    StructuredItinerary structuredItinerary = null;
+    if (event.getItineraryJson() != null) {
+      try {
+        structuredItinerary = objectMapper.readValue(
+            event.getItineraryJson(), StructuredItinerary.class);
+        log.info("Deserialized structured itinerary: taskId={}, destination={}",
+            taskId,
+            structuredItinerary.getMetadata() != null
+                ? structuredItinerary.getMetadata().getDestination() : "unknown");
+      } catch (Exception e) {
+        log.warn("Failed to deserialize itinerary JSON, falling back to raw string: taskId={}, error={}",
+            taskId, e.getMessage());
+      }
+    }
+
+    // Mark task as completed in Redis with structured itinerary + raw JSON
+    if (structuredItinerary != null) {
+      taskService.markCompleted(taskId, structuredItinerary, event.getItineraryJson());
+    } else {
+      taskService.markCompleted(taskId, event.getItineraryJson());
+    }
 
     // Push SSE event
     taskService.getTask(taskId).ifPresent(task ->

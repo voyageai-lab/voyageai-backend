@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.voyageai.voyageaibackend.domain.model.PlanningTask;
+import com.voyageai.voyageaibackend.domain.model.StructuredItinerary;
 import com.voyageai.voyageaibackend.kafka.event.PlanningProgressEvent;
 import com.voyageai.voyageaibackend.kafka.event.PlanningResultEvent;
 import com.voyageai.voyageaibackend.service.RedisTaskService;
@@ -145,9 +146,10 @@ class KafkaConsumerServiceTest {
           eq("{\"days\": []}")
       );
 
-      // Verify task marked completed
+      // Verify task marked completed with structured itinerary
       verify(taskService, atLeastOnce()).markCompleted(
           eq("result-task-1"),
+          any(StructuredItinerary.class),
           eq("{\"days\": []}")
       );
 

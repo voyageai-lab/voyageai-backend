@@ -1,5 +1,7 @@
 package com.voyageai.voyageaibackend.domain.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -49,6 +51,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class StructuredItinerary {
 
   /**
@@ -62,47 +65,50 @@ public class StructuredItinerary {
   private List<DailyItinerary> days;
 
   /**
+   * General travel tips (from Python service).
+   */
+  private List<String> tips;
+
+  /**
    * Itinerary metadata containing overview information.
    */
   @Data
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class ItineraryMetadata {
     
     /**
      * Primary destination city/country.
-     * Example: "Tokyo", "Paris", "New York City"
      */
     private String destination;
 
     /**
      * Trip start date in ISO 8601 format (YYYY-MM-DD).
-     * Example: "2024-04-01"
      */
+    @JsonAlias("start_date")
     private String startDate;
 
     /**
      * Trip end date in ISO 8601 format (YYYY-MM-DD).
-     * Example: "2024-04-05"
      */
+    @JsonAlias("end_date")
     private String endDate;
 
     /**
      * Total number of days in the trip.
-     * Example: 5
      */
+    @JsonAlias("total_days")
     private Integer totalDays;
 
     /**
      * User's budget as a string (with currency).
-     * Example: "$2000", "¥200,000", "€1500"
      */
     private String budget;
 
     /**
      * User's interests/preferences.
-     * Example: ["anime", "food", "temples", "shopping"]
      */
     private List<String> interests;
   }
@@ -114,23 +120,22 @@ public class StructuredItinerary {
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class DailyItinerary {
     
     /**
      * Day number (1-indexed).
-     * Example: 1, 2, 3, ...
      */
+    @JsonAlias("day_number")
     private Integer dayNumber;
 
     /**
      * Date for this day in ISO 8601 format (YYYY-MM-DD).
-     * Example: "2024-04-01"
      */
     private String date;
 
     /**
      * Theme or title for this day's activities.
-     * Example: "Tokyo Arrival: Exploring Shinjuku"
      */
     private String theme;
 
@@ -141,51 +146,39 @@ public class StructuredItinerary {
 
     /**
      * Summary of the day's itinerary.
-     * Example: "Start your Tokyo adventure with serene gardens and vibrant nightlife"
      */
     private String summary;
   }
 
   /**
    * Single activity within a day's itinerary.
-   * 
-   * <p>The activityId is crucial for frontend linking:
-   * when a user clicks an activity card, the frontend can use this ID
-   * to find and highlight the corresponding map marker.
    */
   @Data
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Activity {
     
     /**
      * Unique activity identifier for frontend linking.
      * Format: "act-day{dayNumber}-{sequenceNumber}"
-     * Example: "act-day1-001", "act-day2-003"
-     * 
-     * <p>This ID enables bidirectional linking:
-     * - Click activity card → highlight map marker with this ID
-     * - Click map marker → scroll to activity card with this ID
      */
+    @JsonAlias("activity_id")
     private String activityId;
 
     /**
-     * Time range for this activity.
-     * Format: "HH:MM-HH:MM" (24-hour format)
-     * Example: "09:00-11:00", "14:30-16:00"
+     * Time range for this activity (HH:MM-HH:MM).
      */
     private String time;
 
     /**
      * Activity title.
-     * Example: "Shinjuku Gyoen National Garden", "Sushi Lunch at Tsukiji Market"
      */
     private String title;
 
     /**
      * Detailed description of the activity.
-     * Example: "Explore one of Tokyo's largest and most beautiful parks..."
      */
     private String description;
 
@@ -201,82 +194,67 @@ public class StructuredItinerary {
 
     /**
      * Travel tips and recommendations for this activity.
-     * Example: "Arrive early to avoid crowds", "Bring cash for entrance fee"
      */
     private String tips;
 
     /**
-     * Estimated cost for this activity.
-     * Example: "$20", "¥1500", "Free"
+     * Notes (from Python service, alternative to tips).
      */
+    private List<String> notes;
+
+    /**
+     * Estimated cost for this activity.
+     */
+    @JsonAlias("estimated_cost")
     private String estimatedCost;
 
     /**
      * Estimated duration in minutes.
-     * Example: 120 (for 2 hours)
      */
+    @JsonAlias("duration_minutes")
     private Integer durationMinutes;
   }
 
   /**
    * Geographic location information for an activity.
-   * 
-   * <p>This data is essential for:
-   * <ul>
-   *   <li>Plotting markers on Google Maps</li>
-   *   <li>Drawing routes between consecutive activities</li>
-   *   <li>Calculating distances and travel times</li>
-   *   <li>Providing navigation links</li>
-   * </ul>
    */
   @Data
   @Builder
   @NoArgsConstructor
   @AllArgsConstructor
+  @JsonIgnoreProperties(ignoreUnknown = true)
   public static class Location {
     
     /**
      * Location name.
-     * Example: "Shinjuku Gyoen National Garden", "Tokyo Station"
      */
     private String name;
 
     /**
      * Full address of the location.
-     * Example: "11 Naitomachi, Shinjuku City, Tokyo 160-0014, Japan"
      */
     private String address;
 
     /**
      * Latitude coordinate (REQUIRED for map plotting).
-     * Range: -90 to 90
-     * Example: 35.6852
      */
     private Double latitude;
 
     /**
      * Longitude coordinate (REQUIRED for map plotting).
-     * Range: -180 to 180
-     * Example: 139.7103
      */
     private Double longitude;
 
     /**
      * Google Place ID (optional, enables rich place details).
-     * Example: "ChIJ4zGFAZmMGGAR_VNKZfyPqvw"
-     * 
-     * <p>When present, frontend can use Google Places API to fetch:
-     * - Photos, reviews, ratings
-     * - Opening hours
-     * - Contact information
-     * - Real-time business status
      */
+    @JsonAlias("place_id")
     private String placeId;
 
     /**
      * Place type from Google Places API.
-     * Example: "temple", "restaurant", "hotel", "museum", "park"
      */
+    @JsonAlias("place_type")
     private String placeType;
   }
 

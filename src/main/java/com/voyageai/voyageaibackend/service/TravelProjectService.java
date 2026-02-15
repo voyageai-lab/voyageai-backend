@@ -101,6 +101,24 @@ public class TravelProjectService {
   }
 
   /**
+   * Updates a project's title.
+   *
+   * @param projectId Project ID
+   * @param userId User ID (for security validation)
+   * @param title New title
+   * @return Updated project
+   */
+  @Transactional
+  public TravelProject updateTitle(String projectId, Long userId, String title) {
+    TravelProject project = getProject(projectId, userId);
+    project.setTitle(title);
+    project.setUpdatedAt(Instant.now());
+    TravelProject saved = projectRepository.save(project);
+    log.info("Updated title for project {}: {}", projectId, title);
+    return saved;
+  }
+
+  /**
    * Archives a project (makes it read-only).
    *
    * @param projectId Project ID
