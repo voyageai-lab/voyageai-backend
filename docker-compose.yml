@@ -116,8 +116,10 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # Planning mode
       PLANNING_MODE: kafka
-      # Frontend URL for CORS
+      # Frontend URL for CORS and OAuth redirect
       FRONTEND_URL: http://localhost:3000
+      # Override application.properties frontend.url for Docker
+      SPRING_APPLICATION_JSON: '{"frontend.url":"http://localhost:3000"}'
       # Actuator
       SPRING_PROFILES_ACTIVE: production
     depends_on:
