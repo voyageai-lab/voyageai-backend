@@ -8,6 +8,7 @@ import com.voyageai.voyageaibackend.service.TravelPlanService;
 import com.voyageai.voyageaibackend.web.controller.TaskStreamController;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
@@ -54,14 +55,16 @@ public class KafkaConsumerService {
   )
   public void handleProgressEvent(PlanningProgressEvent event) {
     String taskId = event.getTaskId();
-    log.info(
-        "Received progress event: taskId={}, stage={}, percent={}",
-        taskId,
-        event.getStage(),
-        event.getPercent()
-    );
-
+    // Set MDC trace context for structured logging correlation
+    MDC.put("taskId", taskId);
     try {
+      log.info(
+          "Received progress event: taskId={}, stage={}, percent={}",
+          taskId,
+          event.getStage(),
+          event.getPercent()
+      );
+
       // Update task progress in Redis
       taskService.updateProgress(taskId, event.getMessage(), event.getPercent());
 
@@ -71,6 +74,8 @@ public class KafkaConsumerService {
       );
     } catch (Exception e) {
       log.error("Failed to handle progress event: taskId={}, error={}", taskId, e.getMessage(), e);
+    } finally {
+      MDC.clear();
     }
   }
 
@@ -99,14 +104,17 @@ public class KafkaConsumerService {
   )
   public void handleResultEvent(PlanningResultEvent event) {
     String taskId = event.getTaskId();
-    log.info(
-        "Received result event: taskId={}, status={}, processingTime={}ms",
-        taskId,
-        event.getStatus(),
-        event.getProcessingTimeMs()
-    );
-
+    // Set MDC trace context for structured logging correlation
+    MDC.put("taskId", taskId);
+    MDC.put("userId", event.getUserId());
     try {
+      log.info(
+          "Received result event: taskId={}, status={}, processingTime={}ms",
+          taskId,
+          event.getStatus(),
+          event.getProcessingTimeMs()
+      );
+
       if ("COMPLETED".equals(event.getStatus())) {
         handleCompletedResult(event);
       } else {
@@ -120,6 +128,8 @@ public class KafkaConsumerService {
       } catch (Exception ex) {
         log.error("Failed to mark task as failed: taskId={}", taskId, ex);
       }
+    } finally {
+      MDC.clear();
     }
   }
 
