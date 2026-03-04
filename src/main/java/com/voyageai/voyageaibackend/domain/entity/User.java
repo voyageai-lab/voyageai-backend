@@ -61,6 +61,13 @@ public class User {
   @Column(name = "provider_user_id")
   private String providerUserId;
 
+  /**
+   * Gmail OAuth2 access token for reading travel booking emails.
+   * Only populated when the user grants Gmail read scope.
+   */
+  @Column(name = "gmail_access_token", length = 2048)
+  private String gmailAccessToken;
+
   @Column(nullable = false, name = "created_at")
   private Instant createdAt = Instant.now();
 

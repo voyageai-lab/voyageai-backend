@@ -8,7 +8,10 @@ import java.io.IOException;
 import java.time.Instant;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
+import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -25,6 +28,7 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
   private final UserRepository userRepository;
   private final JwtUtil jwtUtil;
+  private final OAuth2AuthorizedClientService authorizedClientService;
 
   @Value("${frontend.url:http://localhost:3000}")
   private String frontendUrl;
@@ -34,10 +38,13 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
    *
    * @param userRepository repository for user data access
    * @param jwtUtil utility for JWT operations
+   * @param authorizedClientService service for accessing OAuth2 authorized clients
    */
-  public OAuth2LoginSuccessHandler(UserRepository userRepository, JwtUtil jwtUtil) {
+  public OAuth2LoginSuccessHandler(UserRepository userRepository, JwtUtil jwtUtil,
+      OAuth2AuthorizedClientService authorizedClientService) {
     this.userRepository = userRepository;
     this.jwtUtil = jwtUtil;
+    this.authorizedClientService = authorizedClientService;
   }
 
   /**
@@ -70,6 +77,18 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
 
     // Find or create user
     User user = processOauthUser(email, name, picture, providerId, authProvider);
+
+    // Extract and store Gmail access token (granted via gmail.readonly scope)
+    OAuth2AuthorizedClient authorizedClient = authorizedClientService.loadAuthorizedClient(
+        registrationId, oauthToken.getName()
+    );
+    if (authorizedClient != null) {
+      OAuth2AccessToken accessToken = authorizedClient.getAccessToken();
+      if (accessToken != null) {
+        user.setGmailAccessToken(accessToken.getTokenValue());
+        userRepository.save(user);
+      }
+    }
 
     // Generate JWT token
     String token = jwtUtil.generateToken(user.getEmail(), user.getId());
