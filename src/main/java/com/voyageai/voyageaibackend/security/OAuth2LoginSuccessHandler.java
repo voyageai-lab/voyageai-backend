@@ -33,6 +33,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
   @Value("${frontend.url:http://localhost:3000}")
   private String frontendUrl;
 
+  @Value("${frontend.base-path:}")
+  private String frontendBasePath;
+
   /**
    * Constructor for OAuth2LoginSuccessHandler.
    *
@@ -94,7 +97,9 @@ public class OAuth2LoginSuccessHandler extends SimpleUrlAuthenticationSuccessHan
     String token = jwtUtil.generateToken(user.getEmail(), user.getId());
 
     // Redirect to frontend with token
-    String redirectUrl = String.format("%s/auth/callback?token=%s", frontendUrl, token);
+    String basePath = (frontendBasePath != null && !frontendBasePath.isBlank())
+        ? frontendBasePath : "";
+    String redirectUrl = String.format("%s%s/auth/callback?token=%s", frontendUrl, basePath, token);
     response.sendRedirect(redirectUrl);
   }
 

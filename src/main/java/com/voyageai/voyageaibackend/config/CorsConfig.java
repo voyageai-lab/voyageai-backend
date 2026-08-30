@@ -18,23 +18,26 @@ public class CorsConfig {
   @Value("${frontend.url}")
   private String frontendUrl;
 
-  /**
-   * Configures CORS settings for the application.
-   * Allows requests from the configured frontend URL.
-   *
-   * @return the CORS configuration source
-   */
+  @Value("${frontend.extra-origins:}")
+  private String extraOrigins;
+
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
     
-    // Allowed origins (frontend URLs)
-    configuration.setAllowedOrigins(Arrays.asList(
-        frontendUrl,              // Production/configured frontend
-        "http://localhost:3000",  // React default dev server
-        "http://localhost:5173",  // Vite default dev server
-        "http://localhost:4200"   // Angular default dev server
+    var origins = new java.util.ArrayList<>(Arrays.asList(
+        frontendUrl,
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:4200"
     ));
+    if (extraOrigins != null && !extraOrigins.isBlank()) {
+      Arrays.stream(extraOrigins.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .forEach(origins::add);
+    }
+    configuration.setAllowedOrigins(origins);
     
     // Allowed HTTP methods
     configuration.setAllowedMethods(Arrays.asList(
