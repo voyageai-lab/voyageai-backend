@@ -1,11 +1,15 @@
 package com.voyageai.voyageaibackend.web.controller;
 
+import com.voyageai.voyageaibackend.domain.entity.ProjectCollaborator.CollaboratorRole;
 import com.voyageai.voyageaibackend.domain.entity.TravelProject;
 import com.voyageai.voyageaibackend.domain.entity.User;
 import com.voyageai.voyageaibackend.domain.model.PlanningTask;
+import com.voyageai.voyageaibackend.domain.repo.TravelProjectRepository;
 import com.voyageai.voyageaibackend.domain.repo.UserRepository;
+import com.voyageai.voyageaibackend.exception.BusinessException;
 import com.voyageai.voyageaibackend.exception.ResourceNotFoundException;
 import com.voyageai.voyageaibackend.kafka.KafkaProducerService;
+import com.voyageai.voyageaibackend.service.CollaborationService;
 import com.voyageai.voyageaibackend.service.ConversationHistoryService;
 import com.voyageai.voyageaibackend.service.PlanningService;
 import com.voyageai.voyageaibackend.service.RedisTaskService;
@@ -60,9 +64,12 @@ public class PlanningController {
   private final PlanningService planningService;
   private final RedisTaskService taskService;
   private final TravelProjectService projectService;
+  private final CollaborationService collaborationService;
+  private final TravelProjectRepository projectRepository;
   private final UserRepository userRepository;
   private final ConversationHistoryService conversationHistoryService;
   private final KafkaProducerService kafkaProducerService;
+  private final com.voyageai.voyageaibackend.util.ApiKeyEncryptor apiKeyEncryptor;
 
   /**
    * Submits a travel planning request.
@@ -116,20 +123,31 @@ public class PlanningController {
     // Use existing project if projectId is provided, otherwise auto-create
     TravelProject project;
     if (request.getProjectId() != null && !request.getProjectId().isBlank()) {
-      project = projectService.getProject(request.getProjectId(), user.getId());
+      String pid = request.getProjectId();
+      CollaboratorRole role = collaborationService.getUserRole(pid, user.getId());
+      if (role == null) {
+        throw new ResourceNotFoundException("Project not found or access denied: " + pid);
+      }
+      if (role == CollaboratorRole.VIEWER) {
+        throw new BusinessException(
+            "Viewers cannot send messages. You have read-only access.",
+            "FORBIDDEN", 403);
+      }
+      project = projectRepository.findByProjectId(pid)
+          .orElseThrow(() -> new ResourceNotFoundException("Project not found: " + pid));
       projectService.touchProject(project.getProjectId());
-      log.info("Using existing project: {}", project.getProjectId());
+      log.info("Using existing project: {} (role: {})", project.getProjectId(), role);
     } else {
       String title = extractTitle(request.getRequirements());
       project = projectService.createProject(user.getId(), title, null);
       log.info("Created new project: {}", project.getProjectId());
     }
 
-    // Submit async request with projectId
     String taskId = planningService.submitPlanningRequest(
         user.getId().toString(), 
         project.getProjectId(), 
-        request.getRequirements()
+        request.getRequirements(),
+        request.isEditMode()
     );
 
     // Build response
@@ -291,6 +309,24 @@ public class PlanningController {
       }
     }
 
+    // Look up user's API keys so the Python worker can authenticate
+    String userApiKey = null;
+    String userGeminiKey = null;
+    try {
+      var userOpt = userRepository.findById(Long.valueOf(task.getUserId()));
+      if (userOpt.isPresent()) {
+        var u = userOpt.get();
+        if (u.getOpenaiApiKey() != null) {
+          userApiKey = apiKeyEncryptor.decrypt(u.getOpenaiApiKey());
+        }
+        if (u.getGeminiApiKey() != null) {
+          userGeminiKey = apiKeyEncryptor.decrypt(u.getGeminiApiKey());
+        }
+      }
+    } catch (Exception e) {
+      log.warn("Failed to look up user API keys for clarification reply: {}", e.getMessage());
+    }
+
     // Publish reply to Kafka for Python worker consumption
     kafkaProducerService.sendClarificationReply(
         taskId,
@@ -298,7 +334,9 @@ public class PlanningController {
         task.getProjectId(),
         request.getAnswers(),
         task.getRequirements(),
-        conversationContext
+        conversationContext,
+        userApiKey,
+        userGeminiKey
     );
 
     return ResponseEntity.ok(java.util.Map.of(

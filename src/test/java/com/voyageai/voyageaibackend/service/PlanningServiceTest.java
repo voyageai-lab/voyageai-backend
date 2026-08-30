@@ -43,6 +43,12 @@ class PlanningServiceTest {
     @Mock
     private KafkaProducerService kafkaProducerService;
 
+    @Mock
+    private com.voyageai.voyageaibackend.domain.repo.UserRepository userRepository;
+
+    @Mock
+    private com.voyageai.voyageaibackend.util.ApiKeyEncryptor apiKeyEncryptor;
+
     private PlanningService planningService;
     private ObjectMapper objectMapper;
 
@@ -54,7 +60,9 @@ class PlanningServiceTest {
                 travelPlanService,
                 conversationHistoryService,
                 geocodingService,
-                kafkaProducerService
+                kafkaProducerService,
+                userRepository,
+                apiKeyEncryptor
         );
         objectMapper = new ObjectMapper();
         // Default to async mode for existing tests
@@ -227,7 +235,7 @@ class PlanningServiceTest {
         when(taskService.createTask(userId, projectId, requirements)).thenReturn(mockTask);
 
         // When
-        String taskId = planningService.submitPlanningRequest(userId, projectId, requirements);
+        String taskId = planningService.submitPlanningRequest(userId, projectId, requirements, false);
 
         // Then
         assertEquals("task-123", taskId);
@@ -247,7 +255,7 @@ class PlanningServiceTest {
         when(taskService.createTask(userId, projectId, requirements)).thenReturn(mockTask);
 
         // When
-        String taskId = planningService.submitPlanningRequest(userId, projectId, requirements);
+        String taskId = planningService.submitPlanningRequest(userId, projectId, requirements, false);
 
         // Then
         assertEquals("task-123", taskId);

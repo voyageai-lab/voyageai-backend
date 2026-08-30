@@ -1,6 +1,7 @@
 package com.voyageai.voyageaibackend.web.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -67,6 +68,9 @@ class PlanningControllerTest {
   @MockBean
   private com.voyageai.voyageaibackend.service.GeocodingService geocodingService;
 
+  @MockBean
+  private com.voyageai.voyageaibackend.kafka.KafkaProducerService kafkaProducerService;
+
   @Test
   @WithMockUser(username = "user@example.com")
   void generatePlan_validRequest_shouldReturnAccepted() throws Exception {
@@ -95,7 +99,7 @@ class PlanningControllerTest {
         .build();
     when(projectService.createProject(any(Long.class), anyString(), any())).thenReturn(mockProject);
 
-    when(planningService.submitPlanningRequest(anyString(), anyString(), anyString())).thenReturn(taskId);
+    when(planningService.submitPlanningRequest(anyString(), anyString(), anyString(), anyBoolean())).thenReturn(taskId);
 
     // When / Then
     mockMvc.perform(post("/api/planning/generate")

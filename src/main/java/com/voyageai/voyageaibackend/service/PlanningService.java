@@ -42,6 +42,8 @@ public class PlanningService {
   private final ConversationHistoryService conversationHistoryService;
   private final GeocodingService geocodingService;
   private final KafkaProducerService kafkaProducerService;
+  private final com.voyageai.voyageaibackend.domain.repo.UserRepository userRepository;
+  private final com.voyageai.voyageaibackend.util.ApiKeyEncryptor apiKeyEncryptor;
 
   @Value("${planning.mode:kafka}")
   private String planningMode;
@@ -224,21 +226,18 @@ public class PlanningService {
    * @param requirements User's travel requirements
    * @return Task ID for status tracking
    */
-  public String submitPlanningRequest(String userId, String projectId, String requirements) {
-    // Determine task type based on conversation history
+  public String submitPlanningRequest(String userId, String projectId, String requirements,
+      boolean editMode) {
     long messageCount = conversationHistoryService.getMessageCount(projectId);
     TaskType taskType = messageCount > 0 
         ? TaskType.CONVERSATION_UPDATE 
         : TaskType.INITIAL_PLANNING;
 
-    // Create task associated with the project
     var task = taskService.createTask(userId, projectId, requirements);
     task.setTaskType(taskType);
     String taskId = task.getTaskId();
 
     if ("kafka".equalsIgnoreCase(planningMode)) {
-      // Build conversation context BEFORE saving the new user message
-      // so the context reflects the history up to (but not including) this message.
       String conversationContext = null;
       if (taskType == TaskType.CONVERSATION_UPDATE) {
         try {
@@ -250,8 +249,6 @@ public class PlanningService {
         }
       }
 
-      // Save user message to conversation history BEFORE sending to Kafka
-      // (In @Async mode, generatePlanAsync handles this, but Kafka mode skips it)
       try {
         ConversationMessage userMessage = ConversationMessage.builder()
             .messageId("msg-" + UUID.randomUUID())
@@ -264,17 +261,32 @@ public class PlanningService {
         conversationHistoryService.addMessage(projectId, userMessage);
       } catch (Exception e) {
         log.warn("Failed to save user message to history: {}", e.getMessage());
-        // Don't block the planning request if history save fails
       }
 
-      // Kafka mode: publish to Kafka topic for Python worker (with conversation context)
+      String userApiKey = null;
+      String userGeminiKey = null;
+      try {
+        var userOpt = userRepository.findById(Long.valueOf(userId));
+        if (userOpt.isPresent()) {
+          var u = userOpt.get();
+          if (u.getOpenaiApiKey() != null) {
+            userApiKey = apiKeyEncryptor.decrypt(u.getOpenaiApiKey());
+          }
+          if (u.getGeminiApiKey() != null) {
+            userGeminiKey = apiKeyEncryptor.decrypt(u.getGeminiApiKey());
+          }
+        }
+      } catch (Exception e) {
+        log.warn("Failed to look up user API keys: {}", e.getMessage());
+      }
+
       kafkaProducerService.sendPlanningRequest(
-          taskId, userId, projectId, requirements, taskType.name(), conversationContext);
-      log.info("Submitted {} request via Kafka with task ID: {} in project: {}",
-          taskType, taskId, projectId);
+          taskId, userId, projectId, requirements, taskType.name(), conversationContext,
+          editMode, userApiKey, userGeminiKey);
+      log.info("Submitted {} request via Kafka with task ID: {} in project: {}{}",
+          taskType, taskId, projectId,
+          editMode ? " (edit mode)" : "");
     } else {
-      // Legacy async mode: direct @Async processing in Java
-      // (generatePlanAsync saves user message internally)
       generatePlanAsync(taskId, projectId, requirements);
       log.info("Submitted {} request via @Async with task ID: {} in project: {}",
           taskType, taskId, projectId);

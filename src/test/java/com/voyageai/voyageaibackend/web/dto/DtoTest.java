@@ -79,7 +79,8 @@ class DtoTest {
         "test@example.com",
         "Test User",
         "https://example.com/avatar.jpg",
-        "LOCAL"
+        "LOCAL",
+        false
     );
 
     assertEquals(1L, userInfo.getId());
