@@ -27,6 +27,7 @@ CREATE TABLE IF NOT EXISTS community_posts (
     id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Post unique identifier',
     user_id BIGINT NOT NULL COMMENT 'Author user ID',
     plan_id VARCHAR(255) COMMENT 'Reference to DynamoDB travel plan ID',
+    project_id VARCHAR(100) COMMENT 'Reference to travel project UUID',
     title VARCHAR(255) NOT NULL COMMENT 'Post title',
     description TEXT COMMENT 'Post description/summary',
     cover_image_url VARCHAR(500) COMMENT 'Cover image URL',
@@ -122,6 +123,26 @@ CREATE TABLE IF NOT EXISTS travel_projects (
     INDEX idx_projects_updated_at (updated_at DESC),
     INDEX idx_projects_user_status (user_id, status, updated_at DESC)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Travel planning projects table';
+
+-- ============================================
+-- Project Collaborators Table
+-- Tracks who has been invited to collaborate on a project
+-- ============================================
+CREATE TABLE IF NOT EXISTS project_collaborators (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Collaborator record ID',
+    project_id VARCHAR(100) NOT NULL COMMENT 'Project UUID',
+    user_id BIGINT NOT NULL COMMENT 'Collaborator user ID',
+    role VARCHAR(20) NOT NULL DEFAULT 'VIEWER' COMMENT 'Collaborator role: OWNER, EDITOR, VIEWER',
+    invited_by BIGINT NOT NULL COMMENT 'User who sent the invitation',
+    accepted_at TIMESTAMP NULL COMMENT 'Timestamp when invitation was accepted',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT 'Invitation creation timestamp',
+
+    UNIQUE KEY uk_project_user (project_id, user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (invited_by) REFERENCES users(id),
+    INDEX idx_collab_project (project_id),
+    INDEX idx_collab_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='Project collaborators table';
 
 -- ============================================
 -- Conversation Messages Table

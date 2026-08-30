@@ -56,7 +56,7 @@ public class TravelProject {
   /**
    * User who owns this project.
    */
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = FetchType.EAGER)
   @JoinColumn(name = "user_id", nullable = false)
   private User user;
 
@@ -91,6 +91,37 @@ public class TravelProject {
    */
   @Column(nullable = false)
   private Instant updatedAt;
+
+  /**
+   * Visibility level of the project (PRIVATE, LINK_SHARED, PUBLIC).
+   */
+  @Enumerated(EnumType.STRING)
+  @Column(nullable = false, length = 20)
+  @Builder.Default
+  private ProjectVisibility visibility = ProjectVisibility.PRIVATE;
+
+  /**
+   * Unique token for share-link access (null when not shared).
+   */
+  @Column(unique = true, length = 64)
+  private String shareToken;
+
+  /**
+   * Timestamp when the share token was created.
+   */
+  private Instant shareTokenCreatedAt;
+
+  /**
+   * Project visibility enum.
+   */
+  public enum ProjectVisibility {
+    /** Only the owner can view. */
+    PRIVATE,
+    /** Anyone with the share link can view. */
+    LINK_SHARED,
+    /** Listed publicly in the community feed. */
+    PUBLIC
+  }
 
   /**
    * Project status enum.

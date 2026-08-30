@@ -1,19 +1,23 @@
 package com.voyageai.voyageaibackend.web.controller;
 
+import com.voyageai.voyageaibackend.domain.entity.ProjectCollaborator;
 import com.voyageai.voyageaibackend.domain.entity.TravelProject;
 import com.voyageai.voyageaibackend.domain.entity.User;
+import com.voyageai.voyageaibackend.domain.repo.TravelProjectRepository;
 import com.voyageai.voyageaibackend.domain.repo.UserRepository;
 import com.voyageai.voyageaibackend.exception.ResourceNotFoundException;
+import com.voyageai.voyageaibackend.service.CollaborationService;
 import com.voyageai.voyageaibackend.service.TravelProjectService;
 import com.voyageai.voyageaibackend.web.dto.ProjectResponse;
 import com.voyageai.voyageaibackend.web.dto.UpdateProjectRequest;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.security.Principal;
 import java.util.List;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +43,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class ProjectController {
 
   private final TravelProjectService projectService;
+  private final CollaborationService collaborationService;
+  private final TravelProjectRepository projectRepository;
   private final UserRepository userRepository;
 
   /**
@@ -53,11 +59,29 @@ public class ProjectController {
   @SecurityRequirement(name = "bearer-jwt")
   public ResponseEntity<List<ProjectResponse>> listProjects(Principal principal) {
     User user = extractUser(principal);
-    List<TravelProject> projects = projectService.getUserProjects(user.getId());
 
-    List<ProjectResponse> response = projects.stream()
-        .map(this::toResponse)
-        .collect(Collectors.toList());
+    // Own projects
+    List<TravelProject> ownedProjects = projectService.getUserProjects(user.getId());
+    List<ProjectResponse> response = new ArrayList<>();
+    for (TravelProject p : ownedProjects) {
+      response.add(toResponse(p, "OWNER", p.getUser().getDisplayName()));
+    }
+
+    // Collaborated projects (where user is invited as EDITOR/VIEWER)
+    List<ProjectCollaborator> collabs = collaborationService.getSharedWithMe(user.getId());
+    LinkedHashSet<String> ownedIds = new LinkedHashSet<>();
+    for (TravelProject p : ownedProjects) {
+      ownedIds.add(p.getProjectId());
+    }
+    for (ProjectCollaborator collab : collabs) {
+      if (ownedIds.contains(collab.getProjectId())) continue;
+      projectRepository.findByProjectId(collab.getProjectId()).ifPresent(p -> {
+        if (p.getStatus() == TravelProject.ProjectStatus.ACTIVE) {
+          response.add(toResponse(p, collab.getRole().name(),
+              p.getUser().getDisplayName()));
+        }
+      });
+    }
 
     return ResponseEntity.ok(response);
   }
@@ -78,8 +102,14 @@ public class ProjectController {
       Principal principal
   ) {
     User user = extractUser(principal);
-    TravelProject project = projectService.getProject(projectId, user.getId());
-    return ResponseEntity.ok(toResponse(project));
+    // Check ownership first, then collaborator access
+    var role = collaborationService.getUserRole(projectId, user.getId());
+    if (role == null) {
+      throw new ResourceNotFoundException("Project not found or access denied: " + projectId);
+    }
+    TravelProject project = projectRepository.findByProjectId(projectId)
+        .orElseThrow(() -> new ResourceNotFoundException("Project not found: " + projectId));
+    return ResponseEntity.ok(toResponse(project, role.name(), project.getUser().getDisplayName()));
   }
 
   /**
@@ -101,7 +131,7 @@ public class ProjectController {
   ) {
     User user = extractUser(principal);
     TravelProject project = projectService.updateTitle(projectId, user.getId(), request.getTitle());
-    return ResponseEntity.ok(toResponse(project));
+    return ResponseEntity.ok(toResponse(project, "OWNER", user.getDisplayName()));
   }
 
   /**
@@ -143,12 +173,17 @@ public class ProjectController {
   /**
    * Converts a TravelProject entity to a ProjectResponse DTO.
    */
-  private ProjectResponse toResponse(TravelProject project) {
+  private ProjectResponse toResponse(TravelProject project, String role, String ownerDisplayName) {
     return ProjectResponse.builder()
         .projectId(project.getProjectId())
         .title(project.getTitle())
         .description(project.getDescription())
         .status(project.getStatus().name())
+        .visibility(project.getVisibility() != null
+            ? project.getVisibility().name() : "PRIVATE")
+        .shareToken(project.getShareToken())
+        .role(role)
+        .ownerDisplayName(ownerDisplayName)
         .createdAt(project.getCreatedAt())
         .updatedAt(project.getUpdatedAt())
         .build();

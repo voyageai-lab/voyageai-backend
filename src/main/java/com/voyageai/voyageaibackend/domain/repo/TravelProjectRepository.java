@@ -2,6 +2,7 @@ package com.voyageai.voyageaibackend.domain.repo;
 
 import com.voyageai.voyageaibackend.domain.entity.TravelProject;
 import com.voyageai.voyageaibackend.domain.entity.TravelProject.ProjectStatus;
+import com.voyageai.voyageaibackend.domain.entity.TravelProject.ProjectVisibility;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -68,5 +69,23 @@ public interface TravelProjectRepository extends JpaRepository<TravelProject, Lo
    * @return count
    */
   long countByUser_IdAndStatus(Long userId, ProjectStatus status);
+
+  /**
+   * Find project by its share token (for public/link access).
+   *
+   * @param shareToken the unique share token
+   * @return optional project
+   */
+  Optional<TravelProject> findByShareToken(String shareToken);
+
+  /**
+   * Find all public projects (for community feed).
+   *
+   * @param visibility visibility filter
+   * @param status project status filter
+   * @return list of public projects
+   */
+  List<TravelProject> findByVisibilityAndStatusOrderByUpdatedAtDesc(
+      ProjectVisibility visibility, ProjectStatus status);
 }
 
