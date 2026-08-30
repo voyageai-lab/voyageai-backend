@@ -68,6 +68,27 @@ public class User {
   @Column(name = "gmail_access_token", length = 2048)
   private String gmailAccessToken;
 
+  /**
+   * User's own OpenAI API key (AES-256-GCM encrypted at rest).
+   * When set, the Python AI worker uses this key instead of the platform default.
+   */
+  @Column(name = "openai_api_key", length = 512)
+  private String openaiApiKey;
+
+  /**
+   * User's own Google Gemini API key (AES-256-GCM encrypted at rest).
+   * When set, the Python AI worker uses Gemini instead of OpenAI.
+   */
+  @Column(name = "gemini_api_key", length = 512)
+  private String geminiApiKey;
+
+  /**
+   * Whether this is a temporary guest account.
+   * Guest accounts can be upgraded to full accounts later.
+   */
+  @Column(nullable = false)
+  private boolean guest = false;
+
   @Column(nullable = false, name = "created_at")
   private Instant createdAt = Instant.now();
 
@@ -83,7 +104,12 @@ public class User {
     /**
      * Google OAuth authentication.
      */
-    GOOGLE
+    GOOGLE,
+
+    /**
+     * Anonymous guest session (no credentials).
+     */
+    GUEST
   }
 }
 
