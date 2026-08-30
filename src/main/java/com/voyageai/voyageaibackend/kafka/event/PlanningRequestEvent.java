@@ -10,10 +10,7 @@ import lombok.NoArgsConstructor;
  * Kafka event sent when a user submits a travel planning request.
  *
  * <p>Published to topic: {@code planning.request}
- *
- * <p>Partition key: {@code taskId} ensures all events for the same task
- * land on the same partition, preserving ordering.
- *
+ * <p>Partition key: {@code taskId}
  * <p>Consumed by: Python AI Worker
  */
 @Data
@@ -22,24 +19,21 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PlanningRequestEvent {
 
-  /** Unique task identifier (UUID). Used as Kafka partition key. */
   private String taskId;
-
-  /** Authenticated user who submitted the request. */
   private String userId;
-
-  /** Project ID for conversation context grouping. */
   private String projectId;
-
-  /** User's travel requirements (natural language). */
   private String requirements;
-
-  /** Task type: INITIAL_PLANNING, CONVERSATION_UPDATE, TOOL_CALL. */
   private String taskType;
-
-  /** Previous conversation context for follow-up requests (null for initial). */
   private String conversationContext;
 
-  /** ISO-8601 timestamp when the event was created. */
+  /** When true, worker fetches existing itinerary from DB and runs surgical edit pipeline. */
+  private boolean editMode;
+
+  /** User's own OpenAI API key (decrypted). Worker uses this instead of platform default. */
+  private String userOpenaiApiKey;
+
+  /** User's own Gemini API key (decrypted). Takes priority over OpenAI when set. */
+  private String userGeminiApiKey;
+
   private Instant timestamp;
 }

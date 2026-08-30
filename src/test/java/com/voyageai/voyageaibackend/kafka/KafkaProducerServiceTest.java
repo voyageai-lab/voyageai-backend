@@ -104,7 +104,7 @@ class KafkaProducerServiceTest {
     String taskType = "INITIAL_PLANNING";
 
     // When
-    kafkaProducerService.sendPlanningRequest(taskId, userId, projectId, requirements, taskType, null);
+    kafkaProducerService.sendPlanningRequest(taskId, userId, projectId, requirements, taskType, null, false, null, null);
 
     // Then - verify message appears on Kafka topic
     await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
@@ -132,7 +132,7 @@ class KafkaProducerServiceTest {
 
     // When
     kafkaProducerService.sendPlanningRequest(
-        taskId, "user-1", "proj-1", "Test requirements", "INITIAL_PLANNING", null);
+        taskId, "user-1", "proj-1", "Test requirements", "INITIAL_PLANNING", null, false, null, null);
 
     // Then
     await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
@@ -156,7 +156,7 @@ class KafkaProducerServiceTest {
 
     // When
     kafkaProducerService.sendPlanningRequest(
-        "ts-test", "user-1", "proj-1", "Test", "INITIAL_PLANNING", null);
+        "ts-test", "user-1", "proj-1", "Test", "INITIAL_PLANNING", null, false, null, null);
 
     // Then
     await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {

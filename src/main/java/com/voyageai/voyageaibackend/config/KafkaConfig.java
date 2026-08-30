@@ -86,6 +86,14 @@ public class KafkaConfig {
         .build();
   }
 
+  @Bean
+  public NewTopic clarificationReplyTopic() {
+    return TopicBuilder.name("planning.clarification.reply")
+        .partitions(3)
+        .replicas(1)
+        .build();
+  }
+
   // =========================================================================
   // Producer Configuration (Java -> Kafka)
   // =========================================================================

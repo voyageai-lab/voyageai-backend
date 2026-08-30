@@ -52,6 +52,7 @@ public class KafkaProducerService {
    * @param requirements        user's travel requirements
    * @param taskType            type of planning task
    * @param conversationContext previous conversation history for follow-ups (nullable)
+   * @param existingItinerary   JSON-serialized itinerary for edit operations (nullable)
    * @return CompletableFuture that completes when Kafka acknowledges the send
    */
   public CompletableFuture<SendResult<String, PlanningRequestEvent>> sendPlanningRequest(
@@ -60,7 +61,10 @@ public class KafkaProducerService {
       String projectId,
       String requirements,
       String taskType,
-      String conversationContext
+      String conversationContext,
+      boolean editMode,
+      String userOpenaiApiKey,
+      String userGeminiApiKey
   ) {
     PlanningRequestEvent event = PlanningRequestEvent.builder()
         .taskId(taskId)
@@ -69,6 +73,9 @@ public class KafkaProducerService {
         .requirements(requirements)
         .taskType(taskType)
         .conversationContext(conversationContext)
+        .editMode(editMode)
+        .userOpenaiApiKey(userOpenaiApiKey)
+        .userGeminiApiKey(userGeminiApiKey)
         .timestamp(Instant.now())
         .build();
 
@@ -107,7 +114,9 @@ public class KafkaProducerService {
       String projectId,
       List<Map<String, String>> answers,
       String originalRequirements,
-      String conversationContext
+      String conversationContext,
+      String userOpenaiApiKey,
+      String userGeminiApiKey
   ) {
     ClarificationReplyEvent event = ClarificationReplyEvent.builder()
         .taskId(taskId)
@@ -116,6 +125,8 @@ public class KafkaProducerService {
         .answers(answers)
         .originalRequirements(originalRequirements)
         .conversationContext(conversationContext)
+        .userOpenaiApiKey(userOpenaiApiKey)
+        .userGeminiApiKey(userGeminiApiKey)
         .timestamp(Instant.now())
         .build();
 

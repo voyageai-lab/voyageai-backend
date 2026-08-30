@@ -40,6 +40,12 @@ public class ClarificationReplyEvent {
   /** Conversation context from the original planning request (may be null for first-time requests). */
   private String conversationContext;
 
+  /** User's OpenAI API key (decrypted, for Python worker to authenticate). */
+  private String userOpenaiApiKey;
+
+  /** User's Gemini API key (decrypted). Takes priority over OpenAI when set. */
+  private String userGeminiApiKey;
+
   /** ISO-8601 timestamp. */
   private Instant timestamp;
 }
