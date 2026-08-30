@@ -168,6 +168,12 @@ public class RedisTaskService {
    */
   public void updateProgress(String taskId, String message, int percent) {
     updateTask(taskId, task -> {
+      // Auto-promote PENDING → PROCESSING on first progress update
+      // This handles the case where Kafka progress events arrive before
+      // an explicit markProcessing() call (e.g., clarification reply flow)
+      if (task.getStatus() == TaskStatus.PENDING) {
+        task.setStatus(TaskStatus.PROCESSING);
+      }
       task.setProgressMessage(message);
       task.setProgressPercent(Math.min(100, Math.max(0, percent))); // Clamp to 0-100
       task.setUpdatedAt(Instant.now());
