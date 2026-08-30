@@ -9,6 +9,7 @@ import com.voyageai.voyageaibackend.web.dto.AuthResponse;
 import com.voyageai.voyageaibackend.web.dto.LoginRequest;
 import com.voyageai.voyageaibackend.web.dto.RegisterRequest;
 import java.time.Instant;
+import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -109,6 +110,28 @@ public class AuthService {
   }
 
   /**
+   * Creates a temporary guest account with no credentials.
+   *
+   * @return authentication response with JWT token
+   */
+  public AuthResponse createGuest() {
+    String guestId = UUID.randomUUID().toString().substring(0, 8);
+    String email = "guest-" + guestId + "@knflow.local";
+
+    User user = new User();
+    user.setEmail(email);
+    user.setPasswordHash(passwordEncoder.encode(UUID.randomUUID().toString()));
+    user.setDisplayName("Guest " + guestId);
+    user.setAuthProvider(User.AuthProvider.GUEST);
+    user.setGuest(true);
+    user.setCreatedAt(Instant.now());
+
+    User savedUser = userRepository.save(user);
+    String token = jwtUtil.generateToken(savedUser.getEmail(), savedUser.getId());
+    return buildAuthResponse(savedUser, token);
+  }
+
+  /**
    * Builds an AuthResponse from a User entity and token.
    *
    * @param user the user entity
@@ -122,6 +145,7 @@ public class AuthService {
         .displayName(user.getDisplayName())
         .avatarUrl(user.getAvatarUrl())
         .authProvider(user.getAuthProvider().name())
+        .guest(user.isGuest())
         .build();
 
     return AuthResponse.builder()

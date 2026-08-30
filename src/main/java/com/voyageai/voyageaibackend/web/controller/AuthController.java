@@ -82,6 +82,8 @@ public class AuthController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
+
+
   /**
    * Authenticates a user with email and password.
    *
@@ -118,6 +120,23 @@ public class AuthController {
   }
 
   /**
+   * Creates an anonymous guest session.
+   * No credentials required. Returns a JWT for a temporary guest account.
+   *
+   * @return authentication response with JWT token
+   */
+  @PostMapping("/guest")
+  @Operation(
+      summary = "Create guest session",
+      description = "Create a temporary anonymous account and receive a JWT token. "
+          + "Guest accounts can later be upgraded to full accounts."
+  )
+  public ResponseEntity<AuthResponse> createGuest() {
+    AuthResponse response = authService.createGuest();
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
+  }
+
+  /**
    * Gets the current authenticated user's information.
    * Requires a valid JWT token in the Authorization header.
    *
@@ -145,6 +164,7 @@ public class AuthController {
         .displayName(user.getDisplayName())
         .avatarUrl(user.getAvatarUrl())
         .authProvider(user.getAuthProvider().name())
+        .guest(user.isGuest())
         .build();
     
     return ResponseEntity.ok(userInfo);

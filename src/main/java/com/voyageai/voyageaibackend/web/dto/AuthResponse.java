@@ -61,9 +61,14 @@ public class AuthResponse {
     private String avatarUrl;
 
     /**
-     * Authentication provider (LOCAL or GOOGLE).
+     * Authentication provider (LOCAL, GOOGLE, or GUEST).
      */
     private String authProvider;
+
+    /**
+     * Whether this is a temporary guest account.
+     */
+    private boolean guest;
   }
 }
 
