@@ -77,16 +77,18 @@ if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
     exit 1
 fi
 
-# Create indexes
-echo ""
-echo "[INFO] Creating indexes..."
-docker exec $MONGO_CONTAINER_NAME mongosh $MONGO_DATABASE --eval '
-db.travel_plans.createIndex({ "userId": 1, "planId": 1 }, { unique: true });
-db.travel_plans.createIndex({ "userId": 1 });
-db.travel_plans.createIndex({ "projectId": 1 });
-db.travel_plans.createIndex({ "status": 1 });
-print("Indexes created successfully");
-' 2>/dev/null || echo "[INFO] Indexes may already exist"
+# Indexes are NOT created here on purpose.
+#
+# Spring Data MongoDB creates them from the @Document / @CompoundIndex annotations
+# on TravelPlanDocument at startup. Creating them here as well breaks the app,
+# because mongosh auto-names an index after its keys (userId_1) while Spring names
+# it after the field (userId). Same keys, different name, and MongoDB rejects the
+# second attempt with error 85 IndexOptionsConflict, which fails bean creation and
+# stops the application from starting at all.
+#
+# If you hit that error on an existing container, the collection already holds the
+# old index names. Drop it and let Spring rebuild:
+#   docker exec mongodb-voyage mongosh voyageai --eval 'db.travel_plans.drop()'
 
 echo ""
 echo "MongoDB setup complete!"
